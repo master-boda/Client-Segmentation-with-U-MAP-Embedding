@@ -5,3 +5,8 @@
 
 3. cuidado com variáveis categóricas em clusters (KNN) dão muito overfit
 
+4. não usar o single hierarchical pq é fraco(ward e k-means é bacano )
+
+5. Não ter muitas variaveis categoricas pq "pesam" muito e consequentemente estragram  o modelo
+
+6. usar o geopandas para ver a locations
