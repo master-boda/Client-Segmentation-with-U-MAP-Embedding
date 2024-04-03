@@ -3,3 +3,5 @@
 
 2. fazer tudo em .py , .ipynb só para exploração de dados 
 
+3. cuidado com variáveis categóricas em clusters (KNN) dão muito overfit
+
