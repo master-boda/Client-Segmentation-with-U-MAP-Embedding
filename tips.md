@@ -10,3 +10,5 @@
 5. Não ter muitas variaveis categoricas pq "pesam" muito e consequentemente estragram  o modelo
 
 6. usar o geopandas para ver a locations
+
+7. week 7 : um dos clusters é de pescadores
