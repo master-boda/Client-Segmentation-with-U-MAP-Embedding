@@ -12,3 +12,5 @@
 6. usar o geopandas para ver a locations
 
 7. week 7 : um dos clusters é de pescadores
+
+8. Um dos clusters são karens
