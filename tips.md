@@ -16,3 +16,5 @@
 8. Um dos clusters são karens
 
 9. os cluster que nós temos são MAIORITARIAMENTE esféricos, e os dados são gerados com base em distribuições normais
+
+10. Não usar o PCA 
