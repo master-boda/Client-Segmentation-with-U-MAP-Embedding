@@ -10,3 +10,5 @@
 5. Não ter muitas variaveis categoricas pq "pesam" muito e consequentemente estragram  o modelo
 
 6. usar o geopandas para ver a locations
+
+as karens da populacao são pessoas que fazem reclamações (cascais é um caso)
