@@ -1,9 +1,5 @@
-# files 
-
-import sys
-sys.path.append('../')
-from imports import *
-
+import pandas as pd
+from datetime import datetime
 
 
 def refactor_column_names(df):
@@ -34,7 +30,6 @@ def refactor_column_names(df):
 
     return df
 
-from datetime import datetime
 
 def calculate_age(df, birthdate_column):
     """
