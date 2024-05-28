@@ -3,6 +3,7 @@ from datetime import datetime
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+import geohash2
 
 def refactor_column_names(df):
     """
@@ -90,58 +91,109 @@ def assign_city(lat, lon):
     else:
         return 'Other'
     
-def histogram_plotter(df, columns):
+def var_plotter(df):
     """
-    Plots histograms for specified numerical columns in the DataFrame.
+    Plots histograms for numerical columns in the DataFrame.
 
     Parameters:
     df (pandas.DataFrame): The DataFrame containing the data.
-    columns (list): List of numerical column names to plot histograms for.
     """
-    # remove rows with missing values in the specified columns
-    df = df.dropna(subset=columns)
-
+    # remove rows with missing values
+    df = df.dropna()
+    
+    num_cols = df.select_dtypes(include=['int64', 'float64'])
+    
     # calculate the number of rows and columns for subplots
-    num_plots = len(columns)
+    num_plots = len(num_cols.columns)
     num_cols_in_plot = 3
     num_rows = int(np.ceil(num_plots / num_cols_in_plot))
 
     plt.figure(figsize=(5 * num_cols_in_plot, 5 * num_rows))
 
-    for i, col in enumerate(columns):
+    for i, col in enumerate(num_cols.columns):
         plt.subplot(num_rows, num_cols_in_plot, i + 1)
-        sns.histplot(df[col], kde=False, stat="density", color='blue')
+        sns.histplot(num_cols[col], kde=True, stat="density", linewidth=0, color='blue')
         plt.title(col)
         plt.xlabel(col)
         plt.ylabel('Density')
 
     plt.tight_layout()
     plt.show()
-    
-def bar_plotter(df, columns):
+
+def add_degree_dummies(df, name_column): # noqa
     """
-    Plots bar plots for specified categorical columns in the DataFrame.
+    Extracts the degree prefix from the name column and creates dummy variables.
 
     Parameters:
-    df (pandas.DataFrame): The DataFrame containing the data.
-    columns (list): List of categorical column names to plot bar plots for.
+    df (pd.DataFrame): The input dataframe containing customer information.
+    name_column (str): The name of the column containing customer names with degree prefixes.
+
+    Returns:
+    pd.DataFrame: A new dataframe with degree dummy variables added.
     """
-    # remove rows with missing values in the specified columns
-    df = df.dropna(subset=columns)
+    # this solves the problem of people without degree
+    def extract_degree(name):
+        if pd.notnull(name) and '.' in name:
+            parts = name.split()
+            if len(parts) > 1 and '.' in parts[0]:
+                return parts[0].split('.')[0]
+        return 'No Degree'
+    
+    df['degree'] = df[name_column].apply(extract_degree)
 
-    # calculate the number of rows and columns for subplots
-    num_plots = len(columns)
-    num_cols_in_plot = 3
-    num_rows = int(np.ceil(num_plots / num_cols_in_plot))
+    degree_dummies = pd.get_dummies(df['degree'], prefix='degree')
+    df = pd.concat([df, degree_dummies], axis=1)
 
-    plt.figure(figsize=(5 * num_cols_in_plot, 5 * num_rows))
+    df.drop(['degree'], axis=1, inplace=True)
 
-    for i, col in enumerate(columns):
-        plt.subplot(num_rows, num_cols_in_plot, i + 1)
-        df[col].value_counts().plot(kind='bar', color='blue')
-        plt.title(col)
-        plt.xlabel(col)
-        plt.ylabel('Frequency')
+    return df
 
-    plt.tight_layout()
-    plt.show()
+
+def map_education_years(df, name_column):
+    """
+    Maps the degree prefix from the name column to corresponding education years.
+
+    Parameters:
+    df (pd.DataFrame): The input dataframe containing customer information.
+    name_column (str): The name of the column containing customer names with degree prefixes.
+
+    Returns:
+    pd.DataFrame: A new dataframe with an added column for education years.
+    """
+    def get_educ_years(name):
+        if pd.notnull(name) and '.' in name:
+            parts = name.split()
+            if len(parts) > 1 and '.' in parts[0]:
+                degree = parts[0].split('.')[0].lower()
+                if degree == 'bsc':
+                    return 15
+                elif degree == 'msc' or degree == 'msh':
+                    return 17
+                elif degree == 'phd':
+                    return 20
+        return 12  # default for 'None' or no degree
+
+    df['educ_years'] = df[name_column].apply(get_educ_years)
+
+    return df
+
+def geohash_loc(df, lat_column, lon_column, precision=5):
+    """
+    Generate geohashes for a list of coordinates.
+
+    Parameters:
+    df (pandas.DataFrame): The DataFrame containing the coordinates.
+    lat_column (str): The name of the column containing the latitude values.
+    lon_column (str): The name of the column containing the longitude values.
+    precision (int, optional): The precision of the generated geohashes. Defaults to 5. (5≤ 4.89km*4.89km)
+
+    Returns:
+    pandas.DataFrame: The DataFrame with an additional 'geo' column containing the geohash values.
+    """
+    df['geohash'] = df.apply(lambda x: geohash2.encode(x[lat_column], x[lon_column], precision), axis=1)
+
+    df['geo'] = df['geohash'].apply(lambda x: int.from_bytes(x.encode(), 'big'))
+
+    df.drop(['geohash'], axis=1, inplace=True)
+
+    return df
