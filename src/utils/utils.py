@@ -120,60 +120,40 @@ def var_plotter(df):
     plt.tight_layout()
     plt.show()
 
-def add_degree_dummies(df, name_column): # noqa
+def add_education_years(df, name_column):
     """
-    Extracts the degree prefix from the name column and creates dummy variables.
+    Extracts the degree prefix from the name column, maps it to corresponding education years, 
+    and adds a new column for education years.
 
     Parameters:
     df (pd.DataFrame): The input dataframe containing customer information.
     name_column (str): The name of the column containing customer names with degree prefixes.
 
     Returns:
-    pd.DataFrame: A new dataframe with degree dummy variables added.
+    pd.DataFrame: The input dataframe with an added column for education years.
     """
-    # this solves the problem of people without degree
     def extract_degree(name):
         if pd.notnull(name) and '.' in name:
             parts = name.split()
             if len(parts) > 1 and '.' in parts[0]:
-                return parts[0].split('.')[0]
-        return 'No Degree'
+                return parts[0].split('.')[0].lower()
+        return 'no_degree'
     
+    def get_educ_years(degree):
+        if degree == 'bsc':
+            return 15
+        elif degree in ['msc', 'msh']:
+            return 17
+        elif degree == 'phd':
+            return 20
+        return 12  # default for 'no_degree' or no degree
+
+    # extract the degree prefix and map it to education years
     df['degree'] = df[name_column].apply(extract_degree)
+    df['educ_years'] = df['degree'].apply(get_educ_years)
 
-    degree_dummies = pd.get_dummies(df['degree'], prefix='degree')
-    df = pd.concat([df, degree_dummies], axis=1)
-
+    # drop the temporary 'degree' column
     df.drop(['degree'], axis=1, inplace=True)
-
-    return df
-
-
-def map_education_years(df, name_column):
-    """
-    Maps the degree prefix from the name column to corresponding education years.
-
-    Parameters:
-    df (pd.DataFrame): The input dataframe containing customer information.
-    name_column (str): The name of the column containing customer names with degree prefixes.
-
-    Returns:
-    pd.DataFrame: A new dataframe with an added column for education years.
-    """
-    def get_educ_years(name):
-        if pd.notnull(name) and '.' in name:
-            parts = name.split()
-            if len(parts) > 1 and '.' in parts[0]:
-                degree = parts[0].split('.')[0].lower()
-                if degree == 'bsc':
-                    return 15
-                elif degree == 'msc' or degree == 'msh':
-                    return 17
-                elif degree == 'phd':
-                    return 20
-        return 12  # default for 'None' or no degree
-
-    df['educ_years'] = df[name_column].apply(get_educ_years)
 
     return df
 
@@ -190,6 +170,7 @@ def geohash_loc(df, lat_column, lon_column, precision=5):
     Returns:
     pandas.DataFrame: The DataFrame with an additional 'geo' column containing the geohash values.
     """
+    
     df['geohash'] = df.apply(lambda x: geohash2.encode(x[lat_column], x[lon_column], precision), axis=1)
 
     df['geo'] = df['geohash'].apply(lambda x: int.from_bytes(x.encode(), 'big'))
