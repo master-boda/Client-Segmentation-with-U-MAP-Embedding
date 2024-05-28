@@ -30,7 +30,6 @@ def refactor_column_names(df):
 
     return df
 
-
 def calculate_age(df, birthdate_column):
     """
     Calculates the age of customers based on their birthdate.
@@ -48,5 +47,43 @@ def calculate_age(df, birthdate_column):
     """
     df[birthdate_column] = pd.to_datetime(df[birthdate_column])
     today = datetime.today()
-    df['age'] = today.year - df[birthdate_column].dt.year - ((today.month, today.day) < (df[birthdate_column].dt.month, df[birthdate_column].dt.day))
+    
+    df['age'] = today.year - df[birthdate_column].dt.year
+    
+    # create a boolean series indicating whether the birthday has occurred this year
+    birthday_passed = (today.month > df[birthdate_column].dt.month) | ((today.month == df[birthdate_column].dt.month) & (today.day >= df[birthdate_column].dt.day))
+    
+    # boolean is converted to an integer (True -> 1, False -> 0) and subtracted from age
+    # so if the birthday has already occurred this year, the age will remain the same (~birthday_passed = False -> 0, age - 0 = age)
+    # if the birthday has not occurred yet, the age will be decremented by 1 (~birthday_passed = True -> 1, age - 1 = age - 1)
+    df['age'] -= ~birthday_passed
+    
     return df
+
+def assign_city(lat, lon):
+    """
+    This function assigns a city name based on given latitude and longitude 
+    coordinates. The cities and their corresponding boundaries are predefined 
+    within the function:
+    
+    - Lisbon: Latitude between 38.6 and 38.85, Longitude between -9.25 and -9.05
+    - Peniche: Latitude between 39.3 and 39.4, Longitude between -9.5 and -9.3
+    - Ericeira: Latitude between 38.9 and 39.0, Longitude between -9.5 and -9.3
+    - Other: Any other coordinates outside the defined boundaries
+    
+    Parameters:
+    lat (float): Latitude of the location.
+    lon (float): Longitude of the location.
+
+    Returns:
+    str: The name of the city corresponding to the given coordinates, 
+         or 'Other' if the coordinates do not match any predefined city boundaries.
+    """
+    if 38.6 <= lat <= 38.85 and -9.25 <= lon <= -9.05:
+        return 'Lisbon'
+    elif 39.3 <= lat <= 39.4 and -9.5 <= lon <= -9.3:
+        return 'Peniche'
+    elif 38.9 <= lat <= 39.0 and -9.5 <= lon <= -9.3:
+        return 'Ericeira'
+    else:
+        return 'Other'
