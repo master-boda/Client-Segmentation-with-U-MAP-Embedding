@@ -90,31 +90,58 @@ def assign_city(lat, lon):
     else:
         return 'Other'
     
-def var_plotter(df):
+def histogram_plotter(df, columns):
     """
-    Plots histograms for numerical columns in the DataFrame.
+    Plots histograms for specified numerical columns in the DataFrame.
 
     Parameters:
     df (pandas.DataFrame): The DataFrame containing the data.
+    columns (list): List of numerical column names to plot histograms for.
     """
-    # remove rows with missing values
-    df = df.dropna()
-    
-    num_cols = df.select_dtypes(include=['int64', 'float64'])
-    
+    # remove rows with missing values in the specified columns
+    df = df.dropna(subset=columns)
+
     # calculate the number of rows and columns for subplots
-    num_plots = len(num_cols.columns)
+    num_plots = len(columns)
     num_cols_in_plot = 3
     num_rows = int(np.ceil(num_plots / num_cols_in_plot))
 
     plt.figure(figsize=(5 * num_cols_in_plot, 5 * num_rows))
 
-    for i, col in enumerate(num_cols.columns):
+    for i, col in enumerate(columns):
         plt.subplot(num_rows, num_cols_in_plot, i + 1)
-        sns.histplot(num_cols[col], kde=True, stat="density", linewidth=0, color='blue')
+        sns.histplot(df[col], kde=False, stat="density", color='blue')
         plt.title(col)
         plt.xlabel(col)
         plt.ylabel('Density')
+
+    plt.tight_layout()
+    plt.show()
+    
+def bar_plotter(df, columns):
+    """
+    Plots bar plots for specified categorical columns in the DataFrame.
+
+    Parameters:
+    df (pandas.DataFrame): The DataFrame containing the data.
+    columns (list): List of categorical column names to plot bar plots for.
+    """
+    # remove rows with missing values in the specified columns
+    df = df.dropna(subset=columns)
+
+    # calculate the number of rows and columns for subplots
+    num_plots = len(columns)
+    num_cols_in_plot = 3
+    num_rows = int(np.ceil(num_plots / num_cols_in_plot))
+
+    plt.figure(figsize=(5 * num_cols_in_plot, 5 * num_rows))
+
+    for i, col in enumerate(columns):
+        plt.subplot(num_rows, num_cols_in_plot, i + 1)
+        df[col].value_counts().plot(kind='bar', color='blue')
+        plt.title(col)
+        plt.xlabel(col)
+        plt.ylabel('Frequency')
 
     plt.tight_layout()
     plt.show()
