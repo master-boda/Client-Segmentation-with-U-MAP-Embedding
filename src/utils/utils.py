@@ -1,6 +1,8 @@
 import pandas as pd
 from datetime import datetime
-
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
 
 def refactor_column_names(df):
     """
@@ -87,3 +89,32 @@ def assign_city(lat, lon):
         return 'Ericeira'
     else:
         return 'Other'
+    
+def var_plotter(df):
+    """
+    Plots histograms for numerical columns in the DataFrame.
+
+    Parameters:
+    df (pandas.DataFrame): The DataFrame containing the data.
+    """
+    # remove rows with missing values
+    df = df.dropna()
+    
+    num_cols = df.select_dtypes(include=['int64', 'float64'])
+    
+    # calculate the number of rows and columns for subplots
+    num_plots = len(num_cols.columns)
+    num_cols_in_plot = 3
+    num_rows = int(np.ceil(num_plots / num_cols_in_plot))
+
+    plt.figure(figsize=(5 * num_cols_in_plot, 5 * num_rows))
+
+    for i, col in enumerate(num_cols.columns):
+        plt.subplot(num_rows, num_cols_in_plot, i + 1)
+        sns.histplot(num_cols[col], kde=True, stat="density", linewidth=0, color='blue')
+        plt.title(col)
+        plt.xlabel(col)
+        plt.ylabel('Density')
+
+    plt.tight_layout()
+    plt.show()
