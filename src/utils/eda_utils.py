@@ -77,3 +77,31 @@ def correlation_plotter(df, columns):
     plt.title('Correlation Matrix')
 
     plt.show()
+    
+def assign_city(lat, lon):
+    """
+    This function assigns a city name based on given latitude and longitude 
+    coordinates. The cities and their corresponding boundaries are predefined 
+    within the function:
+    
+    - Lisbon: Latitude between 38.6 and 38.85, Longitude between -9.25 and -9.05
+    - Peniche: Latitude between 39.3 and 39.4, Longitude between -9.5 and -9.3
+    - Ericeira: Latitude between 38.9 and 39.0, Longitude between -9.5 and -9.3
+    - Other: Any other coordinates outside the defined boundaries
+    
+    Parameters:
+    lat (float): Latitude of the location.
+    lon (float): Longitude of the location.
+
+    Returns:
+    str: The name of the city corresponding to the given coordinates, 
+         or 'Other' if the coordinates do not match any predefined city boundaries.
+    """
+    if 38.6 <= lat <= 38.85 and -9.25 <= lon <= -9.05:
+        return 'Lisbon'
+    elif 39.3 <= lat <= 39.4 and -9.5 <= lon <= -9.3:
+        return 'Peniche'
+    elif 38.9 <= lat <= 39.0 and -9.5 <= lon <= -9.3:
+        return 'Ericeira'
+    else:
+        return 'Other'

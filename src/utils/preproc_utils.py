@@ -100,18 +100,78 @@ def add_education_years(df, name_column):
 
     return df
 
+def binning(df):
+    """
+    Swaps specified variables for new binary dummy variables using binning.
+
+    Parameters:
+    df (pandas.DataFrame): The input DataFrame.
+    binning_dict (dict): A dictionary where keys are column names and values are tuples defining the bins.
+
+    Returns:
+    pd.DataFrame: The DataFrame with new binary dummy variables added.
+    """
+    
+    binning_dict = {
+        'kids_home': [0, 2, float('inf')],
+        'teens_home': [0, 2, float('inf')],
+        'number_complaints': [0, 1, float('inf')],
+        'distinct_stores_visited': [0, 3, float('inf')],
+        'educ_years': [12, 15, float('inf')]
+    }
+
+    for col, bins in binning_dict.items():
+        bin_labels = [f"{col}_under_{bins[1]}", f"{col}_over_{bins[1]}"]
+        df[f'{col}_binned'] = pd.cut(df[col], bins=bins, include_lowest=True, labels=bin_labels)
+
+        # create binary dummy variables for each bin
+        for bin_label in bin_labels:
+            df[bin_label] = (df[f'{col}_binned'] == bin_label).astype(int)
+
+        # drop the temporary binned column
+        df.drop(columns=[f'{col}_binned'], inplace=True)
+        
+    return df
+
+def feat_engineering(df):
+    """
+    Adds new columns to the DataFrame representing the proportion of each spending category
+    relative to the total spending in specified categories, and applies binning to specific variables.
+
+    Parameters:
+    df (pd.DataFrame): The input DataFrame.
+
+    Returns:
+    pd.DataFrame: The DataFrame with new proportion columns, monetary column, and binary dummy variables added.
+    """
+    spend_cols = ['spend_groceries', 'spend_electronics', 'spend_vegetables', 
+                  'spend_nonalcohol_drinks', 'spend_alcohol_drinks', 'spend_meat', 
+                  'spend_fish', 'spend_hygiene', 'spend_videogames']
+    
+    df['monetary'] = df[spend_cols].sum(axis=1)
+
+    # calculate the proportion for each spending category
+    for col in spend_cols:
+        proportion_col = f'{col}_proportion'
+        df[proportion_col] = df[col] / df['monetary']
+     
+    return df
+
 def clean_customer_data(df):
     """
     Cleans and preprocesses the customer data.
 
     This function performs several preprocessing steps including:
     - Removing repeating prefixes in column names
+    - Creating a new column for total monetary spending
+    - Creating new columns for the proportion of spending in each category
     - Dropping the first column (assumed to be an index column)
     - Calculating age from the birthdate column and dropping the birthdate column
     - Creating a binary column for loyalty membership and dropping the original column
     - Calculating years as a customer from the year_first_transaction column and dropping the original column
     - Extracting education years from the name column and dropping the name column
     - Converting gender to a binary column and dropping the original column
+    - Dropping coordinates columns
 
     Parameters:
     df (pandas.DataFrame): The input DataFrame containing customer information.
@@ -122,6 +182,17 @@ def clean_customer_data(df):
     # remove repeating prefixes in column names
     df = refactor_column_names(df)
 
+    spend_cols = ['spend_groceries', 'spend_electronics', 'spend_vegetables', 
+                  'spend_nonalcohol_drinks', 'spend_alcohol_drinks', 'spend_meat', 
+                  'spend_fish', 'spend_hygiene', 'spend_videogames']
+    
+    df['monetary'] = df[spend_cols].sum(axis=1)
+
+    # calculate the proportion for each spending category
+    for col in spend_cols:
+        proportion_col = f'{col}_proportion'
+        df[proportion_col] = df[col] / df['monetary']
+    
     # drop the first column which is assumed to be an index column
     if 'Unnamed: 0' in df.columns:
         df.drop('Unnamed: 0', axis=1, inplace=True)
@@ -146,36 +217,9 @@ def clean_customer_data(df):
     df['gender_binary'] = np.where(df['gender'] == 'male', 1, 0)
     df.drop('gender', axis=1, inplace=True)
 
+    df.drop(columns=['latitude', 'longitude'], inplace=True)
+
     return df
-
-
-def assign_city(lat, lon):
-    """
-    This function assigns a city name based on given latitude and longitude 
-    coordinates. The cities and their corresponding boundaries are predefined 
-    within the function:
-    
-    - Lisbon: Latitude between 38.6 and 38.85, Longitude between -9.25 and -9.05
-    - Peniche: Latitude between 39.3 and 39.4, Longitude between -9.5 and -9.3
-    - Ericeira: Latitude between 38.9 and 39.0, Longitude between -9.5 and -9.3
-    - Other: Any other coordinates outside the defined boundaries
-    
-    Parameters:
-    lat (float): Latitude of the location.
-    lon (float): Longitude of the location.
-
-    Returns:
-    str: The name of the city corresponding to the given coordinates, 
-         or 'Other' if the coordinates do not match any predefined city boundaries.
-    """
-    if 38.6 <= lat <= 38.85 and -9.25 <= lon <= -9.05:
-        return 'Lisbon'
-    elif 39.3 <= lat <= 39.4 and -9.5 <= lon <= -9.3:
-        return 'Peniche'
-    elif 38.9 <= lat <= 39.0 and -9.5 <= lon <= -9.3:
-        return 'Ericeira'
-    else:
-        return 'Other'
     
 def scale_and_impute(df, numerical_cols, ordinal_cols, scaler):
     """
@@ -215,8 +259,6 @@ def scale_and_impute(df, numerical_cols, ordinal_cols, scaler):
     df_processed = pd.DataFrame(df_processed, columns=processed_cols, index=df.index)
 
     return df_processed
-
-
 
 def sqrt_transform(dataframe, columns):
     """
@@ -350,3 +392,23 @@ def outlier_removal_unidimensional(df):
     outliers_df = sqrt_transform(outliers_df, cont_cols)
 
     return df_cleaned, outliers_df
+
+def get_column_names_by_type(df, data_type='cont'):
+    """
+    Returns a list of column names based on their data type.
+
+    Parameters:
+    df (pd.DataFrame): The input DataFrame.
+    data_type (str): The type of columns to return. Options are 'cont' for continuous, 'binary' for binary.
+
+    Returns:
+    list: A list of column names of the specified type.
+    """
+    if data_type == 'cont':
+        # Continuous columns: float64 or int64, excluding binary columns
+        return df.select_dtypes(include=['float64', 'int64']).columns.tolist()
+    elif data_type == 'binary':
+        # Binary columns: those with exactly 2 unique values
+        return [col for col in df.columns if df[col].nunique() == 2]
+    else:
+        raise ValueError("data_type must be 'cont' or 'binary'")
