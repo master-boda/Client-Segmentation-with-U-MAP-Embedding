@@ -177,8 +177,7 @@ def assign_city(lat, lon):
     else:
         return 'Other'
     
-
-def scale_and_impute(df, numerical_cols, scaler):
+def scale_and_impute(df, numerical_cols, ordinal_cols, scaler):
     """
     Scales the numerical and ordinal columns in the DataFrame and applies KNN imputation for missing values.
 
@@ -197,19 +196,26 @@ def scale_and_impute(df, numerical_cols, scaler):
         ('imputer', KNNImputer(n_neighbors=5))   # Impute missing values
     ])
 
+    # define the pipeline for ordinal features
+    ordinal_pipeline = Pipeline(steps=[
+        ('imputer', SimpleImputer(strategy='most_frequent'))  # Impute missing values with the most frequent value
+    ])
+
     # combine pipelines using ColumnTransformer
     preprocessor = ColumnTransformer(transformers=[
         ('num', numerical_pipeline, numerical_cols),
+        ('ord', ordinal_pipeline, ordinal_cols)
     ], remainder='passthrough')  # Pass through all other columns
 
     # fit and transform the data using the preprocessor
     df_processed = preprocessor.fit_transform(df)
 
     # combine the processed numerical data with the other data
-    processed_cols = numerical_cols  + [col for col in df.columns if col not in numerical_cols]
+    processed_cols = numerical_cols + ordinal_cols + [col for col in df.columns if col not in numerical_cols + ordinal_cols]
     df_processed = pd.DataFrame(df_processed, columns=processed_cols, index=df.index)
 
     return df_processed
+
 
 
 def sqrt_transform(dataframe, columns):
