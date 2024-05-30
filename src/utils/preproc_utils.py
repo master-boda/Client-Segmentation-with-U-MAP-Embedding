@@ -178,7 +178,7 @@ def assign_city(lat, lon):
         return 'Other'
     
 
-def scale_and_impute(df, numerical_cols, ordinal_cols, scaler):
+def scale_and_impute(df, numerical_cols, scaler):
     """
     Scales the numerical and ordinal columns in the DataFrame and applies KNN imputation for missing values.
 
@@ -197,22 +197,16 @@ def scale_and_impute(df, numerical_cols, ordinal_cols, scaler):
         ('imputer', KNNImputer(n_neighbors=5))   # Impute missing values
     ])
 
-    # define the pipeline for ordinal features
-    ordinal_pipeline = Pipeline(steps=[
-        ('imputer', SimpleImputer(strategy='most_frequent'))  # Impute missing values with the most frequent value
-    ])
-
     # combine pipelines using ColumnTransformer
     preprocessor = ColumnTransformer(transformers=[
         ('num', numerical_pipeline, numerical_cols),
-        ('ord', ordinal_pipeline, ordinal_cols)
     ], remainder='passthrough')  # Pass through all other columns
 
     # fit and transform the data using the preprocessor
     df_processed = preprocessor.fit_transform(df)
 
     # combine the processed numerical data with the other data
-    processed_cols = numerical_cols + ordinal_cols + [col for col in df.columns if col not in numerical_cols + ordinal_cols]
+    processed_cols = numerical_cols  + [col for col in df.columns if col not in numerical_cols]
     df_processed = pd.DataFrame(df_processed, columns=processed_cols, index=df.index)
 
     return df_processed
@@ -244,3 +238,109 @@ def sqrt_transform(dataframe, columns):
             transformed_data[column] = np.sqrt(dataframe[column])
     
     return transformed_data
+
+def remove_outliers_percentile(df, columns, lower_percentile=0.01, upper_percentile=0.99):
+    """
+    Removes outliers from specified columns in a DataFrame using the percentile method.
+
+    Parameters:
+    df (pandas.DataFrame): The input DataFrame.
+    columns (list): List of column names to check for outliers.
+    lower_percentile (float): The lower percentile threshold. Default is 0.01 (1st percentile).
+    upper_percentile (float): The upper percentile threshold. Default is 0.99 (99th percentile).
+
+    Returns:
+    pd.DataFrame: The DataFrame with outliers removed.
+    pd.DataFrame: The DataFrame containing only outliers.
+    """
+    initial_row_count = df.shape[0]
+    outliers = pd.DataFrame()
+    
+    for column in columns:
+        lower_bound = df[column].quantile(lower_percentile)
+        upper_bound = df[column].quantile(upper_percentile)
+        
+        column_outliers = df[(df[column] < lower_bound) | (df[column] > upper_bound)]
+        outliers = pd.concat([outliers, column_outliers])
+        
+        df = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
+    
+    outliers = outliers.drop_duplicates()
+    final_row_count = df.shape[0]
+    num_rows_removed = initial_row_count - final_row_count
+    percentage_removed = (num_rows_removed / initial_row_count) * 100
+    
+    print(f"Number of rows removed: {num_rows_removed}")
+    print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
+    
+    return df, outliers
+
+def remove_outliers_manual(df, thresholds):
+    """
+    Removes outliers from specified columns in a DataFrame based on manual thresholds.
+
+    Parameters:
+    df (pandas.DataFrame): The input DataFrame.
+    thresholds (dict): Dictionary where keys are column names and values are tuples (lower_bound, upper_bound).
+
+    Returns:
+    pd.DataFrame: The DataFrame with outliers removed.
+    pd.DataFrame: The DataFrame containing only outliers.
+    """
+    initial_row_count = df.shape[0]
+    outliers = pd.DataFrame()
+
+    for column, (lower_bound, upper_bound) in thresholds.items():
+        column_outliers = df[(df[column] < lower_bound) | (df[column] > upper_bound)]
+        outliers = pd.concat([outliers, column_outliers])
+
+        df = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
+
+    outliers = outliers.drop_duplicates()
+    final_row_count = df.shape[0]
+    num_rows_removed = initial_row_count - final_row_count
+    percentage_removed = (num_rows_removed / initial_row_count) * 100
+
+    print(f"Number of rows removed: {num_rows_removed}")
+    print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
+
+    return df, outliers
+
+def outlier_removal_unidimensional(df):
+    """
+    Removes unidimensional outliers using both manual thresholds and percentile method, 
+    and stores outliers in a separate DataFrame.
+
+    Parameters:
+    df (pd.DataFrame): The input DataFrame.
+
+    Returns:
+    pd.DataFrame: The DataFrame with outliers removed.
+    pd.DataFrame: The DataFrame containing only outliers.
+    """
+    cont_cols = ['spend_groceries', 'spend_electronics', 'spend_vegetables', 'spend_nonalcohol_drinks', 
+                 'spend_alcohol_drinks', 'spend_meat', 'spend_fish', 'spend_hygiene', 'spend_videogames', 
+                 'spend_petfood', 'percentage_of_products_bought_promotion', 'total_distinct_products']
+    
+    outliers_df = pd.DataFrame()
+    
+    thresholds = {
+        'spend_videogames' : (1, 2200),
+        'spend_fish' : (1, 3000),
+        'spend_meat' : (3, 4000),
+        'spend_electronics' : (0, 8000),
+        'spend_petfood' : (0, 4200)
+    }
+
+    # remove outliers using manual thresholds
+    df_cleaned, manual_outliers = remove_outliers_manual(df, thresholds)
+    outliers_df = pd.concat([outliers_df, manual_outliers])
+
+    # remove outliers using percentile method
+    df_cleaned, percentile_outliers = remove_outliers_percentile(df, cont_cols, 0.01, 0.99)
+    outliers_df = pd.concat([outliers_df, percentile_outliers])
+
+    df_cleaned = sqrt_transform(df_cleaned, cont_cols)
+    outliers_df = sqrt_transform(outliers_df, cont_cols)
+
+    return df_cleaned, outliers_df
