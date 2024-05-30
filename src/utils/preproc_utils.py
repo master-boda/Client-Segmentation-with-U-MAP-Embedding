@@ -213,7 +213,7 @@ def scale_and_impute(df, numerical_cols, ordinal_cols, scaler):
 
     # combine the processed numerical data with the other data
     processed_cols = numerical_cols + ordinal_cols + [col for col in df.columns if col not in numerical_cols + ordinal_cols]
-    df_processed = pd.DataFrame(df_processed, columns=processed_cols)
+    df_processed = pd.DataFrame(df_processed, columns=processed_cols, index=df.index)
 
     return df_processed
 

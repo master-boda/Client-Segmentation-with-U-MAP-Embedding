@@ -47,6 +47,7 @@ customer_info_cont_sqrt = sqrt_transform(customer_info_clean, customer_info_cont
 customer_info_cont_scaled = scale_and_impute(customer_info_cont_sqrt, customer_info_cont, customer_info_discrete, MinMaxScaler())
 
 # data exporting (useful for further exploratary data analysis)
+base_dir = 'data/processed'
 customer_info_cont_scaled.to_csv(os.path.join(base_dir, 'customer_info_cont_scaled.csv'))
 
 pca = PCA(n_components=6)
@@ -55,3 +56,11 @@ principal_components = pca.fit_transform(customer_info_cont_scaled)
 df_principal_components = pd.DataFrame(principal_components, columns=[f'PC{i+1}' for i in range(6)], index=customer_info_cont_scaled.index)
 
 df_principal_components.to_csv(os.path.join(base_dir, 'customer_info_pca.csv'))
+
+test = customer_info_cont_scaled[['spend_groceries', 'spend_electronics',
+       'spend_vegetables', 'spend_nonalcohol_drinks', 'spend_alcohol_drinks',
+       'spend_meat', 'spend_fish', 'spend_hygiene', 'spend_videogames',
+       'spend_petfood', 'percentage_of_products_bought_promotion',
+       'total_distinct_products', 'loyalty_member', 'gender_binary']]
+
+test.to_csv(os.path.join(base_dir, 'customer_info_test.csv'))
