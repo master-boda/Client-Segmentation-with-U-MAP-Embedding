@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import KNNImputer, SimpleImputer
+from sklearn.base import BaseEstimator, TransformerMixin
 
 def refactor_column_names(df):
     """
@@ -100,6 +101,57 @@ def add_education_years(df, name_column):
 
     return df
 
+def clean_customer_data(df):
+    """
+    Cleans and preprocesses the customer data.
+
+    This function performs several preprocessing steps including:
+    - Removing repeating prefixes in column names
+    - Dropping the first column (assumed to be an index column)
+    - Calculating age from the birthdate column and dropping the birthdate column
+    - Creating a binary column for loyalty membership and dropping the original column
+    - Calculating years as a customer from the year_first_transaction column and dropping the original column
+    - Extracting education years from the name column and dropping the name column
+    - Converting gender to a binary column and dropping the original column
+    - Dropping coordinates columns
+
+    Parameters:
+    df (pandas.DataFrame): The input DataFrame containing customer information.
+
+    Returns:
+    pandas.DataFrame: The cleaned and preprocessed DataFrame.
+    """
+    # remove repeating prefixes in column names
+    df = refactor_column_names(df)
+    
+    # drop the first column which is assumed to be an index column
+    if 'Unnamed: 0' in df.columns:
+        df.drop('Unnamed: 0', axis=1, inplace=True)
+
+    # swap "birthdate" column with "age" column
+    df = calculate_age(df, 'birthdate')
+    df.drop('birthdate', axis=1, inplace=True)
+
+    # swap "loyalty_card_number" column with "loyalty_member" column
+    df['loyalty_member'] = np.where(df['loyalty_card_number'].isna(), 0, 1)
+    df.drop('loyalty_card_number', axis=1, inplace=True)
+
+    # swap "year_first_transaction" column with "years_as_customer" column
+    df['years_as_customer'] = datetime.now().year - df['year_first_transaction']
+    df.drop('year_first_transaction', axis=1, inplace=True)
+
+    # extract the education years from the "name" column
+    df = add_education_years(df, 'name')
+    df.drop('name', axis=1, inplace=True)
+
+    # change gender from string to binary
+    df['gender_binary'] = np.where(df['gender'] == 'male', 1, 0)
+    df.drop('gender', axis=1, inplace=True)
+
+    df.drop(columns=['latitude', 'longitude'], inplace=True)
+
+    return df
+
 def binning(df):
     """
     Swaps specified variables for new binary dummy variables using binning.
@@ -131,8 +183,10 @@ def binning(df):
         # drop the temporary binned column
         df.drop(columns=[f'{col}_binned'], inplace=True)
         
+    df.drop(columns=list(binning_dict.keys()), inplace=True)
+        
     return df
-
+    
 def feat_engineering(df):
     """
     Adds new columns to the DataFrame representing the proportion of each spending category
@@ -156,109 +210,6 @@ def feat_engineering(df):
         df[proportion_col] = df[col] / df['monetary']
      
     return df
-
-def clean_customer_data(df):
-    """
-    Cleans and preprocesses the customer data.
-
-    This function performs several preprocessing steps including:
-    - Removing repeating prefixes in column names
-    - Creating a new column for total monetary spending
-    - Creating new columns for the proportion of spending in each category
-    - Dropping the first column (assumed to be an index column)
-    - Calculating age from the birthdate column and dropping the birthdate column
-    - Creating a binary column for loyalty membership and dropping the original column
-    - Calculating years as a customer from the year_first_transaction column and dropping the original column
-    - Extracting education years from the name column and dropping the name column
-    - Converting gender to a binary column and dropping the original column
-    - Dropping coordinates columns
-
-    Parameters:
-    df (pandas.DataFrame): The input DataFrame containing customer information.
-
-    Returns:
-    pandas.DataFrame: The cleaned and preprocessed DataFrame.
-    """
-    # remove repeating prefixes in column names
-    df = refactor_column_names(df)
-
-    spend_cols = ['spend_groceries', 'spend_electronics', 'spend_vegetables', 
-                  'spend_nonalcohol_drinks', 'spend_alcohol_drinks', 'spend_meat', 
-                  'spend_fish', 'spend_hygiene', 'spend_videogames']
-    
-    df['monetary'] = df[spend_cols].sum(axis=1)
-
-    # calculate the proportion for each spending category
-    for col in spend_cols:
-        proportion_col = f'{col}_proportion'
-        df[proportion_col] = df[col] / df['monetary']
-    
-    # drop the first column which is assumed to be an index column
-    if 'Unnamed: 0' in df.columns:
-        df.drop('Unnamed: 0', axis=1, inplace=True)
-
-    # swap "birthdate" column with "age" column
-    df = calculate_age(df, 'birthdate')
-    df.drop('birthdate', axis=1, inplace=True)
-
-    # swap "loyalty_card_number" column with "loyalty_member" column
-    df['loyalty_member'] = np.where(df['loyalty_card_number'].isna(), 0, 1)
-    df.drop('loyalty_card_number', axis=1, inplace=True)
-
-    # swap "year_first_transaction" column with "years_as_customer" column
-    df['years_as_customer'] = datetime.now().year - df['year_first_transaction']
-    df.drop('year_first_transaction', axis=1, inplace=True)
-
-    # extract the education years from the "name" column
-    df = add_education_years(df, 'name')
-    df.drop('name', axis=1, inplace=True)
-
-    # change gender from string to binary
-    df['gender_binary'] = np.where(df['gender'] == 'male', 1, 0)
-    df.drop('gender', axis=1, inplace=True)
-
-    df.drop(columns=['latitude', 'longitude'], inplace=True)
-
-    return df
-    
-def scale_and_impute(df, numerical_cols, ordinal_cols, scaler):
-    """
-    Scales the numerical and ordinal columns in the DataFrame and applies KNN imputation for missing values.
-
-    Parameters:
-    df (pd.DataFrame): The input DataFrame containing the data.
-    numerical_cols (list): A list of column names corresponding to numerical features.
-    ordinal_cols (list): A list of column names corresponding to ordinal features.
-    scaler: An instantiated scaler from sklearn.preprocessing (e.g., StandardScaler, MinMaxScaler, RobustScaler).
-
-    Returns:
-    pd.DataFrame: The DataFrame with scaled and imputed numerical and ordinal features.
-    """
-    # define the pipeline for numerical features
-    numerical_pipeline = Pipeline(steps=[
-        ('scaler', scaler),          # Scale the data
-        ('imputer', KNNImputer(n_neighbors=5))   # Impute missing values
-    ])
-
-    # define the pipeline for ordinal features
-    ordinal_pipeline = Pipeline(steps=[
-        ('imputer', SimpleImputer(strategy='most_frequent'))  # Impute missing values with the most frequent value
-    ])
-
-    # combine pipelines using ColumnTransformer
-    preprocessor = ColumnTransformer(transformers=[
-        ('num', numerical_pipeline, numerical_cols),
-        ('ord', ordinal_pipeline, ordinal_cols)
-    ], remainder='passthrough')  # Pass through all other columns
-
-    # fit and transform the data using the preprocessor
-    df_processed = preprocessor.fit_transform(df)
-
-    # combine the processed numerical data with the other data
-    processed_cols = numerical_cols + ordinal_cols + [col for col in df.columns if col not in numerical_cols + ordinal_cols]
-    df_processed = pd.DataFrame(df_processed, columns=processed_cols, index=df.index)
-
-    return df_processed
 
 def sqrt_transform(dataframe, columns):
     """
@@ -285,7 +236,7 @@ def sqrt_transform(dataframe, columns):
             # apply the square root transformation directly
             transformed_data[column] = np.sqrt(dataframe[column])
     
-    return transformed_data
+    return transformed_data   
 
 def remove_outliers_percentile(df, columns, lower_percentile=0.01, upper_percentile=0.99):
     """
@@ -353,62 +304,3 @@ def remove_outliers_manual(df, thresholds):
     print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
 
     return df, outliers
-
-def outlier_removal_unidimensional(df):
-    """
-    Removes unidimensional outliers using both manual thresholds and percentile method, 
-    and stores outliers in a separate DataFrame.
-
-    Parameters:
-    df (pd.DataFrame): The input DataFrame.
-
-    Returns:
-    pd.DataFrame: The DataFrame with outliers removed.
-    pd.DataFrame: The DataFrame containing only outliers.
-    """
-    cont_cols = ['spend_groceries', 'spend_electronics', 'spend_vegetables', 'spend_nonalcohol_drinks', 
-                 'spend_alcohol_drinks', 'spend_meat', 'spend_fish', 'spend_hygiene', 'spend_videogames', 
-                 'spend_petfood', 'percentage_of_products_bought_promotion', 'total_distinct_products']
-    
-    outliers_df = pd.DataFrame()
-    
-    thresholds = {
-        'spend_videogames' : (1, 2200),
-        'spend_fish' : (1, 3000),
-        'spend_meat' : (3, 4000),
-        'spend_electronics' : (0, 8000),
-        'spend_petfood' : (0, 4200)
-    }
-
-    # remove outliers using manual thresholds
-    df_cleaned, manual_outliers = remove_outliers_manual(df, thresholds)
-    outliers_df = pd.concat([outliers_df, manual_outliers])
-
-    # remove outliers using percentile method
-    df_cleaned, percentile_outliers = remove_outliers_percentile(df, cont_cols, 0.01, 0.99)
-    outliers_df = pd.concat([outliers_df, percentile_outliers])
-
-    df_cleaned = sqrt_transform(df_cleaned, cont_cols)
-    outliers_df = sqrt_transform(outliers_df, cont_cols)
-
-    return df_cleaned, outliers_df
-
-def get_column_names_by_type(df, data_type='cont'):
-    """
-    Returns a list of column names based on their data type.
-
-    Parameters:
-    df (pd.DataFrame): The input DataFrame.
-    data_type (str): The type of columns to return. Options are 'cont' for continuous, 'binary' for binary.
-
-    Returns:
-    list: A list of column names of the specified type.
-    """
-    if data_type == 'cont':
-        # Continuous columns: float64 or int64, excluding binary columns
-        return df.select_dtypes(include=['float64', 'int64']).columns.tolist()
-    elif data_type == 'binary':
-        # Binary columns: those with exactly 2 unique values
-        return [col for col in df.columns if df[col].nunique() == 2]
-    else:
-        raise ValueError("data_type must be 'cont' or 'binary'")
