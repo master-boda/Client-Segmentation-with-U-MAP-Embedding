@@ -5,6 +5,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import KNNImputer, SimpleImputer
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.cluster import DBSCAN
 
 def refactor_column_names(df):
     """
@@ -209,6 +210,8 @@ def feat_engineering(df):
         proportion_col = f'{col}_proportion'
         df[proportion_col] = df[col] / df['monetary']
      
+    df.drop(columns=spend_cols, inplace=True)
+    
     return df
 
 def sqrt_transform(dataframe, columns):
@@ -274,7 +277,7 @@ def remove_outliers_percentile(df, columns, lower_percentile=0.01, upper_percent
     
     return df, outliers
 
-def remove_outliers_manual(df, thresholds):
+def remove_outliers_manual(df):
     """
     Removes outliers from specified columns in a DataFrame based on manual thresholds.
 
@@ -286,6 +289,15 @@ def remove_outliers_manual(df, thresholds):
     pd.DataFrame: The DataFrame with outliers removed.
     pd.DataFrame: The DataFrame containing only outliers.
     """
+    
+    thresholds = {
+        'spend_videogames' : (1, 2200),
+        'spend_fish' : (1, 3000),
+        'spend_meat' : (3, 4000),
+        'spend_electronics' : (0, 8000),
+        'spend_petfood' : (0, 4200)
+    }
+    
     initial_row_count = df.shape[0]
     outliers = pd.DataFrame()
 
@@ -304,3 +316,35 @@ def remove_outliers_manual(df, thresholds):
     print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
 
     return df, outliers
+
+def remove_outliers_dbscan(df, eps=0.5, min_samples=5):
+    """
+    Removes multidimensional outliers from a DataFrame using DBSCAN.
+
+    Parameters:
+    df (pd.DataFrame): The input DataFrame.
+    eps (float): The maximum distance between two samples for one to be considered as in the neighborhood of the other.
+    min_samples (int): The number of samples (or total weight) in a neighborhood for a point to be considered as a core point.
+
+    Returns:
+    pd.DataFrame: The DataFrame with outliers removed.
+    pd.DataFrame: The DataFrame containing only outliers.
+    """
+    # Fit DBSCAN
+    dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+    labels = dbscan.fit_predict(df)
+
+    # Identify outliers (labeled as -1 by DBSCAN)
+    outliers = df[labels == -1]
+    df_cleaned = df[labels != -1]
+
+    # Calculate the number of rows removed and the percentage of the dataset removed
+    num_rows_removed = len(outliers)
+    initial_row_count = len(df)
+    percentage_removed = (num_rows_removed / initial_row_count) * 100
+
+    # Print the number of rows removed and the percentage of the dataset removed
+    print(f"Number of rows removed: {num_rows_removed}")
+    print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
+
+    return df_cleaned, outliers
