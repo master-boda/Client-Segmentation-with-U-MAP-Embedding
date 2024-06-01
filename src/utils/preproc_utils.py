@@ -214,7 +214,7 @@ def feat_engineering(df):
     
     return df
 
-def sqrt_transform(dataframe, columns):
+def sqrt_transform(df):
     """
     Applies square root transformation to the specified columns in the dataframe.
     Shifts the data if there are negative values in a column to make all values in that column non-negative.
@@ -226,22 +226,22 @@ def sqrt_transform(dataframe, columns):
     Returns:
     pd.DataFrame: A dataframe with the square root transformation applied to the specified columns.
     """
-    transformed_data = dataframe.copy()
+    transformed_data = df.copy()
     
-    for column in columns:
-        min_value = dataframe[column].min()
+    for column in df.columns:
+        min_value = df[column].min()
         if min_value < 0:
             # shift the data by adding a constant to make all values non-negative
             shift_value = abs(min_value)
-            transformed_data[column] = np.sqrt(dataframe[column] + shift_value)
+            transformed_data[column] = np.sqrt(df[column] + shift_value)
             print(f"Column '{column}' was shifted by {shift_value} to handle negative values.")
         else:
             # apply the square root transformation directly
-            transformed_data[column] = np.sqrt(dataframe[column])
+            transformed_data[column] = np.sqrt(df[column])
     
     return transformed_data   
 
-def remove_outliers_percentile(df, columns, lower_percentile=0.01, upper_percentile=0.99):
+def remove_outliers_percentile(df, lower_percentile=0.01, upper_percentile=0.99):
     """
     Removes outliers from specified columns in a DataFrame using the percentile method.
 
@@ -258,7 +258,7 @@ def remove_outliers_percentile(df, columns, lower_percentile=0.01, upper_percent
     initial_row_count = df.shape[0]
     outliers = pd.DataFrame()
     
-    for column in columns:
+    for column in df.columns:
         lower_bound = df[column].quantile(lower_percentile)
         upper_bound = df[column].quantile(upper_percentile)
         
