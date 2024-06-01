@@ -4,6 +4,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import folium
 from sklearn.cluster import KMeans
+from sklearn.ensemble import RandomForestClassifier
 import umap
 
 
@@ -164,3 +165,37 @@ def kmeans_umap_visualization(data, n_clusters=7, random_state=42):
     plt.show()
     
     return umap_df
+
+def plot_feature_importance(df, n_clusters=7, random_state=42):
+    """
+    Perform KMeans clustering, use Random Forest to determine feature importance,
+    and plot the feature importances.
+
+    Parameters:
+    latent_rep_scaled (pd.DataFrame): The scaled latent representation data.
+    n_clusters (int): The number of clusters for KMeans.
+    random_state (int): The random state for reproducibility.
+
+    Returns:
+    None
+    """
+    # KMeans clustering
+    kmeans = KMeans(n_clusters=n_clusters, random_state=random_state)
+    cluster_labels = kmeans.fit_predict(df)
+
+    df['cluster'] = cluster_labels
+
+    # use Random Forest to determine feature importance
+    rf = RandomForestClassifier(n_estimators=100, random_state=random_state)
+    rf.fit(df.drop(columns='cluster'), df['cluster'])
+
+    # get feature importances
+    feature_importances = rf.feature_importances_
+    features = df.columns[:-1]
+
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x=feature_importances, y=features, palette='viridis')
+    plt.xlabel('Feature Importance')
+    plt.ylabel('Feature')
+    plt.title('Feature Importance based on Random Forest')
+    plt.show()
