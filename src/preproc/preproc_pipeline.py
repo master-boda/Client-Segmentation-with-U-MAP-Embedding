@@ -10,6 +10,8 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
 from utils.preproc_utils import *
 from autoencoder import run_autoencoder
 
@@ -35,28 +37,36 @@ def preproc_pipeline_customer_info(df, scaler=RobustScaler()):
     # filter for continuous variables
     df_filtered = df[cols_cont]
     
-    cont_imputer = SimpleImputer(strategy='median')
-    cont_imputer.fit(df_filtered)
-    df_cont_imputed = pd.DataFrame(cont_imputer.transform(df_filtered), columns=df_filtered.columns, index=df_filtered.index)
+    df_filtered, outliers = remove_outliers_iqr(df_filtered)
+    
+    imputer = SimpleImputer(strategy='median')
+    imputer.fit(df_filtered)
+    df_imputed = pd.DataFrame(imputer.transform(df_filtered), columns=df_filtered.columns, index=df_filtered.index)
+    df_imputed_outliers = pd.DataFrame(imputer.transform(outliers), columns=outliers.columns, index=outliers.index)
 
-    df_cont_new_features = feat_engineering(df_cont_imputed)
+    df_new_features = feat_engineering(df_imputed)
+    df_new_features_outliers = feat_engineering(df_imputed_outliers)
     
-    df_cont_sqrt = sqrt_transform(df_cont_new_features)
+    df_sqrt = sqrt_transform(df_new_features)
+    df_sqrt_outliers = sqrt_transform(df_new_features_outliers)
     
-    cont_scaler = scaler
-    cont_scaler.fit(df_cont_sqrt)
-    df_cont_scale = pd.DataFrame(cont_scaler.transform(df_cont_sqrt), columns=df_cont_sqrt.columns, index=df_cont_sqrt.index)
+    scaler = scaler
+    scaler.fit(df_sqrt)
+    df_scaled = pd.DataFrame(scaler.transform(df_sqrt), columns=df_sqrt.columns, index=df_sqrt.index)
+    df_scaled_outliers = pd.DataFrame(scaler.transform(df_sqrt_outliers), columns=df_sqrt_outliers.columns, index=df_sqrt_outliers.index)
     
-    run_autoencoder(df_cont_scale, 'data/processed/latent_representation.csv', epochs=50, batch_size=32, latent_dim=6)
+    run_autoencoder(df_scaled, 'data/processed/latent_representation.csv', epochs=50, batch_size=32, latent_dim=6)
+    run_autoencoder(df_scaled_outliers, 'data/processed/latent_representation_outliers.csv', epochs=50, batch_size=32, latent_dim=6)
         
     print('Preprocessing Pipeline Completed')
     
-    return df_cont_scale # return the preprocessed DataFrame without passing through autoencoder
+    return df_scaled, df_scaled_outliers # return the preprocessed DataFrame without passing through autoencoder
 
 # data cleaning before pipeline
 customer_info_clean = clean_customer_data(customer_info)
 
-customer_info_preproc = preproc_pipeline_customer_info(customer_info_clean, scaler=RobustScaler())
+customer_info_preproc, customer_info_preproc_outliers = preproc_pipeline_customer_info(customer_info_clean, scaler=MinMaxScaler())
 
 base_dir = 'data/processed'
 customer_info_preproc.to_csv(os.path.join(base_dir, 'customer_info_preproc.csv'))
+customer_info_preproc_outliers.to_csv(os.path.join(base_dir, 'customer_info_preproc_outliers.csv'))

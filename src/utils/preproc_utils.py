@@ -348,3 +348,40 @@ def remove_outliers_dbscan(df, eps=0.5, min_samples=5):
     print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
 
     return df_cleaned, outliers
+
+def remove_outliers_iqr(df):
+    """
+    Removes outliers from specified columns in a DataFrame using the IQR method.
+
+    Parameters:
+    df (pandas.DataFrame): The input DataFrame.
+
+    Returns:
+    pd.DataFrame: The DataFrame with outliers removed.
+    pd.DataFrame: The DataFrame containing only outliers.
+    """
+    initial_row_count = df.shape[0]
+    outliers = pd.DataFrame()
+
+    for column in df.columns:
+        Q1 = df[column].quantile(0.25)
+        Q3 = df[column].quantile(0.75)
+        IQR = Q3 - Q1
+
+        lower_bound = Q1 - 1.5 * IQR
+        upper_bound = Q3 + 1.5 * IQR
+
+        column_outliers = df[(df[column] < lower_bound) | (df[column] > upper_bound)]
+        outliers = pd.concat([outliers, column_outliers])
+
+        df = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
+
+    outliers = outliers.drop_duplicates()
+    final_row_count = df.shape[0]
+    num_rows_removed = initial_row_count - final_row_count
+    percentage_removed = (num_rows_removed / initial_row_count) * 100
+
+    print(f"Number of rows removed: {num_rows_removed}")
+    print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
+
+    return df, outliers

@@ -6,6 +6,7 @@ import folium
 from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier
 import umap
+from sklearn.metrics import silhouette_score
 
 
 def var_plotter(df, columns):
@@ -133,38 +134,78 @@ def plot_elbow_method(data, max_clusters=10, random_state=42):
     plt.xlabel('Number of Clusters')
     plt.ylabel('WCSS')
     plt.title('Elbow Method for Optimal Number of Clusters')
-    plt.show()
-    
-    return wcss
+    plt.show()  
 
-def kmeans_umap_visualization(data, n_clusters=7, random_state=42):
+def plot_elbow_and_silhouette(data, max_clusters=10, random_state=42):
     """
-    This function applies KMeans clustering and UMAP for visualization, then plots the results.
+    This function calculates WCSS and silhouette scores for different numbers of clusters and plots both graphs on the same plot with dual y-axes.
 
     Parameters:
-    data (pd.DataFrame or np.array): The dataset on which to perform the clustering and UMAP.
-    n_clusters (int): The number of clusters for KMeans.
+    data (pd.DataFrame or np.array): The dataset on which to perform the clustering.
+    max_clusters (int): The maximum number of clusters to test.
+    random_state (int): The random state for KMeans clustering.
+
+    Returns:
+    tuple: A tuple containing two lists - WCSS values and silhouette scores for each number of clusters.
+    """
+    wcss = []
+    silhouette_scores = []
+
+    for i in range(2, max_clusters + 1):
+        kmeans = KMeans(n_clusters=i, random_state=random_state)
+        kmeans.fit(data)
+        wcss.append(kmeans.inertia_)
+        silhouette_avg = silhouette_score(data, kmeans.labels_)
+        silhouette_scores.append(silhouette_avg)
+
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+
+    color = 'tab:blue'
+    ax1.set_xlabel('Number of Clusters')
+    ax1.set_ylabel('WCSS (SSE)', color=color)
+    ax1.plot(range(2, max_clusters + 1), wcss, marker='o', linestyle='--', color=color, label='WCSS (SSE)')
+    ax1.tick_params(axis='y', labelcolor=color)
+
+    ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+    color = 'tab:red'
+    ax2.set_ylabel('Silhouette Coefficient', color=color)
+    ax2.plot(range(2, max_clusters + 1), silhouette_scores, marker='o', linestyle='--', color=color, label='Silhouette Coefficient')
+    ax2.tick_params(axis='y', labelcolor=color)
+
+    fig.tight_layout()  # otherwise the right y-label is slightly clipped
+    fig.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15), ncol=2)
+    plt.title('Elbow Method and Silhouette Coefficient for Optimal Number of Clusters')
+    plt.show()
+
+    return wcss, silhouette_scores
+
+def plot_umap_clusters(df, random_state=42):
+    """
+    Use UMAP to plot clusters in the DataFrame.
+
+    Parameters:
+    df (pd.DataFrame): The input DataFrame, which must contain a 'cluster' column.
     random_state (int): The random state for reproducibility.
 
     Returns:
-    pd.DataFrame: A DataFrame containing the UMAP components and cluster labels.
+    None
     """
-    kmeans = KMeans(n_clusters=n_clusters, random_state=random_state)
-    kmeans.fit(data)
-    labels = kmeans.labels_
+    if 'cluster' not in df.columns:
+        raise ValueError("DataFrame must contain a 'cluster' column.")
+    
+    features = df.drop(columns='cluster')
+    labels = df['cluster']
     
     umap_model = umap.UMAP(n_components=2, random_state=random_state)
-    umap_components = umap_model.fit_transform(data)
+    umap_components = umap_model.fit_transform(features)
     
     umap_df = pd.DataFrame(umap_components, columns=['x', 'y'])
-    umap_df['cluster'] = labels
+    umap_df['cluster'] = labels.values
     
     plt.figure(figsize=(10, 6))
     sns.scatterplot(x='x', y='y', hue='cluster', data=umap_df, palette='tab10')
-    plt.title('UMAP Visualization of Latent Representation')
+    plt.title('UMAP Visualization of Clusters')
     plt.show()
-    
-    return umap_df
 
 def plot_feature_importance(df, n_clusters=7, random_state=42):
     """
@@ -179,19 +220,21 @@ def plot_feature_importance(df, n_clusters=7, random_state=42):
     Returns:
     None
     """
+    new_df = df.copy()
+    
     # KMeans clustering
     kmeans = KMeans(n_clusters=n_clusters, random_state=random_state)
-    cluster_labels = kmeans.fit_predict(df)
+    cluster_labels = kmeans.fit_predict(new_df)
 
-    df['cluster'] = cluster_labels
+    new_df['cluster'] = cluster_labels
 
     # use Random Forest to determine feature importance
     rf = RandomForestClassifier(n_estimators=100, random_state=random_state)
-    rf.fit(df.drop(columns='cluster'), df['cluster'])
+    rf.fit(new_df.drop(columns='cluster'), new_df['cluster'])
 
     # get feature importances
     feature_importances = rf.feature_importances_
-    features = df.columns[:-1]
+    features = new_df.columns[:-1]
 
     plt.figure(figsize=(10, 6))
     sns.barplot(x=feature_importances, y=features, palette='viridis')
