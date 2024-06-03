@@ -5,7 +5,10 @@ from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import KNNImputer, SimpleImputer
 from sklearn.base import BaseEstimator, TransformerMixin
+import os
 from sklearn.cluster import DBSCAN
+
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 def refactor_column_names(df):
     """
@@ -20,8 +23,10 @@ def refactor_column_names(df):
     Returns:
     pandas.DataFrame: The DataFrame with refactored column names.
     """
+    new_df = df.copy()
+    
     prefixes = {}
-    for col in df.columns:
+    for col in new_df.columns:
         prefix = col.split('_')[0] + '_'
         if prefix not in prefixes:
             prefixes[prefix] = [col]
@@ -31,9 +36,9 @@ def refactor_column_names(df):
     for prefix, cols in prefixes.items():
         if len(cols) >= 3:
             refactored_columns = {col: col.replace(prefix, '') for col in cols}
-            df.rename(columns=refactored_columns, inplace=True)
+            new_df.rename(columns=refactored_columns, inplace=True)
 
-    return df
+    return new_df
 
 def calculate_age(df, birthdate_column):
     """
@@ -50,20 +55,22 @@ def calculate_age(df, birthdate_column):
     Returns:
     pandas.DataFrame: The DataFrame with a new 'age' column.
     """
-    df[birthdate_column] = pd.to_datetime(df[birthdate_column])
+    new_df = df.copy()
+    
+    new_df[birthdate_column] = pd.to_datetime(new_df[birthdate_column])
     today = datetime.today()
     
-    df['age'] = today.year - df[birthdate_column].dt.year
+    new_df['age'] = today.year - new_df[birthdate_column].dt.year
     
     # create a boolean series indicating whether the birthday has occurred this year
-    birthday_passed = (today.month > df[birthdate_column].dt.month) | ((today.month == df[birthdate_column].dt.month) & (today.day >= df[birthdate_column].dt.day))
+    birthday_passed = (today.month > new_df[birthdate_column].dt.month) | ((today.month == new_df[birthdate_column].dt.month) & (today.day >= new_df[birthdate_column].dt.day))
     
     # boolean is converted to an integer (True -> 1, False -> 0) and subtracted from age
     # so if the birthday has already occurred this year, the age will remain the same (~birthday_passed = False -> 0, age - 0 = age)
     # if the birthday has not occurred yet, the age will be decremented by 1 (~birthday_passed = True -> 1, age - 1 = age - 1)
-    df['age'] -= ~birthday_passed
+    new_df['age'] -= ~birthday_passed
     
-    return df
+    return new_df
     
 def add_education_years(df, name_column):
     """
@@ -77,6 +84,8 @@ def add_education_years(df, name_column):
     Returns:
     pd.DataFrame: The input dataframe with an added column for education years.
     """
+    new_df = df.copy()
+    
     def extract_degree(name):
         if pd.notnull(name) and '.' in name:
             parts = name.split()
@@ -94,13 +103,13 @@ def add_education_years(df, name_column):
         return 12  # default for 'no_degree' or no degree
 
     # extract the degree prefix and map it to education years
-    df['degree'] = df[name_column].apply(extract_degree)
-    df['educ_years'] = df['degree'].apply(get_educ_years)
+    new_df['degree'] = new_df[name_column].apply(extract_degree)
+    new_df['educ_years'] = new_df['degree'].apply(get_educ_years)
 
     # drop the temporary 'degree' column
-    df.drop(['degree'], axis=1, inplace=True)
+    new_df.drop(['degree'], axis=1, inplace=True)
 
-    return df
+    return new_df
 
 def clean_customer_data(df):
     """
@@ -122,36 +131,38 @@ def clean_customer_data(df):
     Returns:
     pandas.DataFrame: The cleaned and preprocessed DataFrame.
     """
+    new_df = df.copy()
+    
     # remove repeating prefixes in column names
-    df = refactor_column_names(df)
+    new_df = refactor_column_names(new_df)
     
     # drop the first column which is assumed to be an index column
     if 'Unnamed: 0' in df.columns:
-        df.drop('Unnamed: 0', axis=1, inplace=True)
+        new_df.drop('Unnamed: 0', axis=1, inplace=True)
 
     # swap "birthdate" column with "age" column
-    df = calculate_age(df, 'birthdate')
-    df.drop('birthdate', axis=1, inplace=True)
+    new_df = calculate_age(new_df, 'birthdate')
+    new_df.drop('birthdate', axis=1, inplace=True)
 
     # swap "loyalty_card_number" column with "loyalty_member" column
-    df['loyalty_member'] = np.where(df['loyalty_card_number'].isna(), 0, 1)
-    df.drop('loyalty_card_number', axis=1, inplace=True)
+    new_df['loyalty_member'] = np.where(new_df['loyalty_card_number'].isna(), 0, 1)
+    new_df.drop('loyalty_card_number', axis=1, inplace=True)
 
     # swap "year_first_transaction" column with "years_as_customer" column
-    df['years_as_customer'] = datetime.now().year - df['year_first_transaction']
-    df.drop('year_first_transaction', axis=1, inplace=True)
+    new_df['years_as_customer'] = datetime.now().year - new_df['year_first_transaction']
+    new_df.drop('year_first_transaction', axis=1, inplace=True)
 
     # extract the education years from the "name" column
-    df = add_education_years(df, 'name')
-    df.drop('name', axis=1, inplace=True)
+    new_df = add_education_years(new_df, 'name')
+    new_df.drop('name', axis=1, inplace=True)
 
     # change gender from string to binary
-    df['gender_binary'] = np.where(df['gender'] == 'male', 1, 0)
-    df.drop('gender', axis=1, inplace=True)
+    new_df['gender_binary'] = np.where(new_df['gender'] == 'male', 1, 0)
+    new_df.drop('gender', axis=1, inplace=True)
 
-    df.drop(columns=['latitude', 'longitude'], inplace=True)
+    new_df.drop(columns=['latitude', 'longitude'], inplace=True)
 
-    return df
+    return new_df
 
 def binning(df):
     """
@@ -164,6 +175,7 @@ def binning(df):
     Returns:
     pd.DataFrame: The DataFrame with new binary dummy variables added.
     """
+    new_df = df.copy()
     
     binning_dict = {
         'kids_home': [0, 2, float('inf')],
@@ -175,18 +187,18 @@ def binning(df):
 
     for col, bins in binning_dict.items():
         bin_labels = [f"{col}_under_{bins[1]}", f"{col}_over_{bins[1]}"]
-        df[f'{col}_binned'] = pd.cut(df[col], bins=bins, include_lowest=True, labels=bin_labels)
+        new_df[f'{col}_binned'] = pd.cut(new_df[col], bins=bins, include_lowest=True, labels=bin_labels)
 
         # create binary dummy variables for each bin
         for bin_label in bin_labels:
-            df[bin_label] = (df[f'{col}_binned'] == bin_label).astype(int)
+            new_df[bin_label] = (new_df[f'{col}_binned'] == bin_label).astype(int)
 
         # drop the temporary binned column
-        df.drop(columns=[f'{col}_binned'], inplace=True)
+        new_df.drop(columns=[f'{col}_binned'], inplace=True)
         
-    df.drop(columns=list(binning_dict.keys()), inplace=True)
+    new_df.drop(columns=list(binning_dict.keys()), inplace=True)
         
-    return df
+    return new_df
     
 def feat_engineering(df):
     """
@@ -199,20 +211,22 @@ def feat_engineering(df):
     Returns:
     pd.DataFrame: The DataFrame with new proportion columns, monetary column, and binary dummy variables added.
     """
+    new_df = df.copy()
+    
     spend_cols = ['spend_groceries', 'spend_electronics', 'spend_vegetables', 
                   'spend_nonalcohol_drinks', 'spend_alcohol_drinks', 'spend_meat', 
-                  'spend_fish', 'spend_hygiene', 'spend_videogames']
+                  'spend_fish', 'spend_hygiene', 'spend_videogames', 'spend_petfood']
     
-    df['monetary'] = df[spend_cols].sum(axis=1)
+    new_df['monetary'] = new_df[spend_cols].sum(axis=1)
 
     # calculate the proportion for each spending category
     for col in spend_cols:
         proportion_col = f'{col}_proportion'
-        df[proportion_col] = df[col] / df['monetary']
+        new_df[proportion_col] = new_df[col] / new_df['monetary']
      
-    df.drop(columns=spend_cols, inplace=True)
+    new_df.drop(columns=spend_cols, inplace=True)
     
-    return df
+    return new_df
 
 def sqrt_transform(df):
     """
@@ -226,56 +240,20 @@ def sqrt_transform(df):
     Returns:
     pd.DataFrame: A dataframe with the square root transformation applied to the specified columns.
     """
-    transformed_data = df.copy()
+    new_df = df.copy()
     
     for column in df.columns:
         min_value = df[column].min()
         if min_value < 0:
             # shift the data by adding a constant to make all values non-negative
             shift_value = abs(min_value)
-            transformed_data[column] = np.sqrt(df[column] + shift_value)
+            new_df[column] = np.sqrt(df[column] + shift_value)
             print(f"Column '{column}' was shifted by {shift_value} to handle negative values.")
         else:
             # apply the square root transformation directly
-            transformed_data[column] = np.sqrt(df[column])
+            new_df[column] = np.sqrt(df[column])
     
-    return transformed_data   
-
-def remove_outliers_percentile(df, lower_percentile=0.01, upper_percentile=0.99):
-    """
-    Removes outliers from specified columns in a DataFrame using the percentile method.
-
-    Parameters:
-    df (pandas.DataFrame): The input DataFrame.
-    columns (list): List of column names to check for outliers.
-    lower_percentile (float): The lower percentile threshold. Default is 0.01 (1st percentile).
-    upper_percentile (float): The upper percentile threshold. Default is 0.99 (99th percentile).
-
-    Returns:
-    pd.DataFrame: The DataFrame with outliers removed.
-    pd.DataFrame: The DataFrame containing only outliers.
-    """
-    initial_row_count = df.shape[0]
-    outliers = pd.DataFrame()
-    
-    for column in df.columns:
-        lower_bound = df[column].quantile(lower_percentile)
-        upper_bound = df[column].quantile(upper_percentile)
-        
-        column_outliers = df[(df[column] < lower_bound) | (df[column] > upper_bound)]
-        outliers = pd.concat([outliers, column_outliers])
-        
-        df = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
-    
-    outliers = outliers.drop_duplicates()
-    final_row_count = df.shape[0]
-    num_rows_removed = initial_row_count - final_row_count
-    percentage_removed = (num_rows_removed / initial_row_count) * 100
-    
-    print(f"Number of rows removed: {num_rows_removed}")
-    print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
-    
-    return df, outliers
+    return new_df
 
 def remove_outliers_manual(df):
     """
@@ -289,6 +267,7 @@ def remove_outliers_manual(df):
     pd.DataFrame: The DataFrame with outliers removed.
     pd.DataFrame: The DataFrame containing only outliers.
     """
+    new_df = df.copy()
     
     thresholds = {
         'spend_videogames' : (1, 2200),
@@ -298,24 +277,24 @@ def remove_outliers_manual(df):
         'spend_petfood' : (0, 4200)
     }
     
-    initial_row_count = df.shape[0]
+    initial_row_count = new_df.shape[0]
     outliers = pd.DataFrame()
 
     for column, (lower_bound, upper_bound) in thresholds.items():
-        column_outliers = df[(df[column] < lower_bound) | (df[column] > upper_bound)]
+        column_outliers = new_df[(new_df[column] < lower_bound) | (new_df[column] > upper_bound)]
         outliers = pd.concat([outliers, column_outliers])
 
-        df = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
+        new_df = new_df[(new_df[column] >= lower_bound) & (new_df[column] <= upper_bound)]
 
     outliers = outliers.drop_duplicates()
-    final_row_count = df.shape[0]
+    final_row_count = new_df.shape[0]
     num_rows_removed = initial_row_count - final_row_count
     percentage_removed = (num_rows_removed / initial_row_count) * 100
 
     print(f"Number of rows removed: {num_rows_removed}")
     print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
 
-    return df, outliers
+    return new_df, outliers
 
 def remove_outliers_dbscan(df, eps=0.5, min_samples=5):
     """
@@ -330,17 +309,19 @@ def remove_outliers_dbscan(df, eps=0.5, min_samples=5):
     pd.DataFrame: The DataFrame with outliers removed.
     pd.DataFrame: The DataFrame containing only outliers.
     """
+    new_df = df.copy()
+    
     # Fit DBSCAN
     dbscan = DBSCAN(eps=eps, min_samples=min_samples)
-    labels = dbscan.fit_predict(df)
+    labels = dbscan.fit_predict(new_df)
 
     # Identify outliers (labeled as -1 by DBSCAN)
-    outliers = df[labels == -1]
-    df_cleaned = df[labels != -1]
+    outliers = new_df[labels == -1]
+    df_cleaned = new_df[labels != -1]
 
     # Calculate the number of rows removed and the percentage of the dataset removed
     num_rows_removed = len(outliers)
-    initial_row_count = len(df)
+    initial_row_count = len(new_df)
     percentage_removed = (num_rows_removed / initial_row_count) * 100
 
     # Print the number of rows removed and the percentage of the dataset removed
@@ -349,7 +330,7 @@ def remove_outliers_dbscan(df, eps=0.5, min_samples=5):
 
     return df_cleaned, outliers
 
-def remove_outliers_iqr(df):
+def remove_outliers_iqr(df, columns):
     """
     Removes outliers from specified columns in a DataFrame using the IQR method.
 
@@ -360,28 +341,30 @@ def remove_outliers_iqr(df):
     pd.DataFrame: The DataFrame with outliers removed.
     pd.DataFrame: The DataFrame containing only outliers.
     """
-    initial_row_count = df.shape[0]
+    new_df = df.copy()
+    
+    initial_row_count = new_df.shape[0]
     outliers = pd.DataFrame()
 
-    for column in df.columns:
-        Q1 = df[column].quantile(0.25)
-        Q3 = df[column].quantile(0.75)
+    for column in columns:
+        Q1 = new_df[column].quantile(0.25)
+        Q3 = new_df[column].quantile(0.75)
         IQR = Q3 - Q1
 
         lower_bound = Q1 - 1.5 * IQR
         upper_bound = Q3 + 1.5 * IQR
 
-        column_outliers = df[(df[column] < lower_bound) | (df[column] > upper_bound)]
+        column_outliers = new_df[(new_df[column] < lower_bound) | (new_df[column] > upper_bound)]
         outliers = pd.concat([outliers, column_outliers])
 
-        df = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
+        new_df = new_df[(new_df[column] >= lower_bound) & (new_df[column] <= upper_bound)]
 
     outliers = outliers.drop_duplicates()
-    final_row_count = df.shape[0]
+    final_row_count = new_df.shape[0]
     num_rows_removed = initial_row_count - final_row_count
     percentage_removed = (num_rows_removed / initial_row_count) * 100
 
     print(f"Number of rows removed: {num_rows_removed}")
     print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
 
-    return df, outliers
+    return new_df, outliers
