@@ -5,6 +5,8 @@ from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import KNNImputer, SimpleImputer
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.ensemble import IsolationForest
+
 import os
 from sklearn.cluster import DBSCAN
 
@@ -330,12 +332,14 @@ def remove_outliers_dbscan(df, eps=0.5, min_samples=5):
 
     return df_cleaned, outliers
 
+
 def remove_outliers_iqr(df, columns):
     """
     Removes outliers from specified columns in a DataFrame using the IQR method.
 
     Parameters:
     df (pandas.DataFrame): The input DataFrame.
+    columns (list): The list of columns to check for outliers.
 
     Returns:
     pd.DataFrame: The DataFrame with outliers removed.
@@ -368,3 +372,38 @@ def remove_outliers_iqr(df, columns):
     print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
 
     return new_df, outliers
+
+def isolation_forest(df, columns, contamination=0.01, random_state=42):
+    """
+    Removes outliers from specified columns in a DataFrame using the Isolation Forest method.
+
+    Parameters:
+    df (pandas.DataFrame): The input DataFrame.
+    columns (list): The list of columns to check for outliers.
+    contamination (float): The proportion of outliers in the data set, should be between 0 and 0.5.
+    random_state (int): The random seed for reproducibility.
+
+    Returns:
+    pd.DataFrame: The DataFrame with outliers removed.
+    pd.DataFrame: The DataFrame containing only outliers.
+    """
+    new_df = df.copy()
+    initial_row_count = new_df.shape[0]
+
+    clf = IsolationForest(contamination=contamination, random_state=random_state)
+    clf.fit(new_df[columns])
+
+    outliers = clf.predict(new_df[columns])
+    outliers = pd.DataFrame(outliers, columns=['outlier'], index=new_df.index)
+
+    new_df = new_df[outliers['outlier'] == 1].copy()
+    iso_outliers = new_df[outliers['outlier'] == -1].copy()
+
+    final_row_count = new_df.shape[0]
+    num_rows_removed = initial_row_count - final_row_count
+    percentage_removed = (num_rows_removed / initial_row_count) * 100
+
+    print(f"Number of rows removed: {num_rows_removed}")
+    print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
+
+    return new_df, iso_outliers

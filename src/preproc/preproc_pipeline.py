@@ -37,7 +37,11 @@ def preproc_pipeline_customer_info(df, scaler=RobustScaler()):
     # filter for continuous variables
     df_filtered = df[cols_cont]
     
-    df_filtered, outliers = remove_outliers_iqr(df_filtered, df_filtered.columns)
+    df_filtered, iqr_outliers = remove_outliers_iqr(df_filtered, df_filtered.columns)
+    df_filtered, iso_outliers = isolation_forest(df_filtered, df_filtered.columns)
+
+    outliers = pd.concat([iqr_outliers, iso_outliers]).drop_duplicates()
+
     
     imputer = SimpleImputer(strategy='median')
     imputer.fit(df_filtered)
