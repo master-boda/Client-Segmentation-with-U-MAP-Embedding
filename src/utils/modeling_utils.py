@@ -8,6 +8,10 @@ from minisom import MiniSom
 from minisom import MiniSom
 import math
 
+import os
+
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
 def append_kmeans_clusters(df, n_clusters=7, random_state=42):
     """
     Perform KMeans clustering and append the cluster labels to the DataFrame.
@@ -172,3 +176,24 @@ def mean_shift_clustering(df, bandwidth=None, bin_seeding=False):
     plt.show()
 
     return new_df
+def adjust_and_concat_clusters(main_df, outliers_df):
+    """
+    Adjusts the cluster labels in the outliers DataFrame and concatenates it with the main DataFrame.
+
+    Parameters:
+    main_df (pd.DataFrame): The DataFrame containing the main data with cluster labels.
+    outliers_df (pd.DataFrame): The DataFrame containing the outliers data with cluster labels.
+
+    Returns:
+    pd.DataFrame: The concatenated DataFrame with adjusted cluster labels for the outliers.
+    """
+    main_df_copy = main_df.copy()
+    outliers_df_copy = outliers_df.copy()
+    
+    max_cluster_label = main_df_copy['cluster'].max()
+    
+    outliers_df_copy['cluster'] += (max_cluster_label + 1)
+    
+    combined_df = pd.concat([main_df_copy, outliers_df_copy])
+    
+    return combined_df

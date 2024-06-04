@@ -7,27 +7,34 @@ from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier
 import umap
 from sklearn.metrics import silhouette_score
+import os
 
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
-def var_plotter(df, columns):
+def swap_columns(df, col1_idx, col2_idx):
+    cols = df.columns.tolist()
+    cols[col1_idx], cols[col2_idx] = cols[col2_idx], cols[col1_idx]
+    return df[cols]
+
+def col_plotter(df):
     """
-    Plots histograms for specified columns in the DataFrame.
+    Plots histograms for columns in the DataFrame.
 
     Parameters:
     df (pandas.DataFrame): The DataFrame containing the data.
     columns (list): List of column names to plot histograms for.
     """
-    # remove rows with missing values in the specified columns
-    df = df.dropna(subset=columns)
+    # remove rows with missing values
+    df = df.dropna()
 
     # calculate the number of rows and columns for subplots
-    num_plots = len(columns)
+    num_plots = len(df.columns)
     num_cols_in_plot = 3
     num_rows = int(np.ceil(num_plots / num_cols_in_plot))
 
-    plt.figure(figsize=(5 * num_cols_in_plot, 5 * num_rows))
+    plt.figure(figsize=(4 * num_cols_in_plot, 4 * num_rows))
 
-    for i, col in enumerate(columns):
+    for i, col in enumerate(df.columns):
         plt.subplot(num_rows, num_cols_in_plot, i + 1)
         
         sns.histplot(df[col], kde=True, stat="density", color='blue')
@@ -39,25 +46,25 @@ def var_plotter(df, columns):
     plt.tight_layout()
     plt.show()
 
-def boxplotter(df, columns):
+def boxplotter(df):
     """
-    Plots boxplots for specified columns in the DataFrame.
+    Plots boxplots for columns in the DataFrame.
 
     Parameters:
     df (pandas.DataFrame): The DataFrame containing the data.
     columns (list): List of column names to plot boxplots for.
     """
-    # remove rows with missing values in the specified columns
-    df = df.dropna(subset=columns)
+    # remove rows with missing values
+    df = df.dropna()
 
     # calculate the number of rows and columns for subplots
-    num_plots = len(columns)
+    num_plots = len(df.columns)
     num_cols_in_plot = 3
     num_rows = int(np.ceil(num_plots / num_cols_in_plot))
 
-    plt.figure(figsize=(5 * num_cols_in_plot, 5 * num_rows))
+    plt.figure(figsize=(3 * num_cols_in_plot, 3 * num_rows))
 
-    for i, col in enumerate(columns):
+    for i, col in enumerate(df.columns):
         plt.subplot(num_rows, num_cols_in_plot, i + 1)
         
         sns.boxplot(y=df[col], color='blue')
@@ -67,20 +74,41 @@ def boxplotter(df, columns):
     plt.tight_layout()
     plt.show()
     
-def correlation_plotter(df, columns):
+def correlation_plotter(df):
     """
-    Plots a heatmap of the correlation matrix for specified columns in the DataFrame.
+    Plots a heatmap of the correlation matrix for columns in the DataFrame.
 
     Parameters:
     df (pandas.DataFrame): The DataFrame containing the data.
     columns (list): List of column names to include in the correlation analysis.
     """
-    corr = df[columns].corr()
+    corr = df.corr()
 
-    plt.figure(figsize=(10, 8))
+    plt.figure(figsize=(8, 6))
     sns.heatmap(corr, annot=True, fmt=".2f", cmap='coolwarm', vmin=-1, vmax=1, linewidths=0.5)
     plt.title('Correlation Matrix')
 
+    plt.show()
+    
+def plot_variance(df):
+    """
+    Plots the variance of each variable in the DataFrame.
+
+    Parameters:
+    df (pd.DataFrame): The input DataFrame containing the data.
+
+    Returns:
+    None
+    """
+    variances = df.var()
+
+    plt.figure(figsize=(10, 5))
+    variances.plot(kind='bar')
+    plt.title('Variance of Variables')
+    plt.xlabel('Variables')
+    plt.ylabel('Variance')
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
     plt.show()
     
 def assign_city(lat, lon):

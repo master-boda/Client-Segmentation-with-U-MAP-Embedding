@@ -37,7 +37,7 @@ def preproc_pipeline_customer_info(df, scaler=RobustScaler()):
     # filter for continuous variables
     df_filtered = df[cols_cont]
     
-    df_filtered, outliers = remove_outliers_iqr(df_filtered)
+    df_filtered, outliers = remove_outliers_iqr(df_filtered, df_filtered.columns)
     
     imputer = SimpleImputer(strategy='median')
     imputer.fit(df_filtered)
@@ -55,8 +55,8 @@ def preproc_pipeline_customer_info(df, scaler=RobustScaler()):
     df_scaled = pd.DataFrame(scaler.transform(df_sqrt), columns=df_sqrt.columns, index=df_sqrt.index)
     df_scaled_outliers = pd.DataFrame(scaler.transform(df_sqrt_outliers), columns=df_sqrt_outliers.columns, index=df_sqrt_outliers.index)
     
-    run_autoencoder(df_scaled, 'data/processed/latent_representation.csv', epochs=50, batch_size=32, latent_dim=6)
-    run_autoencoder(df_scaled_outliers, 'data/processed/latent_representation_outliers.csv', epochs=50, batch_size=32, latent_dim=6)
+    run_autoencoder(df_scaled, 'data/processed/latent_representation.csv', epochs=50, batch_size=32, latent_dim=4)
+    run_autoencoder(df_scaled_outliers, 'data/processed/latent_representation_outliers.csv', epochs=50, batch_size=32, latent_dim=4)
         
     print('Preprocessing Pipeline Completed')
     
