@@ -1,7 +1,7 @@
 OPTIMIZAR CLUSTERS
-- testar algoritmos diferentes de clustering
+- testar algoritmos diferentes de clustering - batista 
 - testar combinações diferentes de features (preproc pipeline)
-- usar DBSCAN para remover outliers mulidimensionais (incorporar na pipeline)
+- usar DBSCAN para remover outliers mulidimensionais (incorporar na pipeline) - batista
 
 CUSTOMER / CLUSTER ANALYSIS
 - caracterizar os clusters (customer segmentation)
