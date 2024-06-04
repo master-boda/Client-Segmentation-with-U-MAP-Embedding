@@ -5,6 +5,8 @@ from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import KNNImputer, SimpleImputer
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.ensemble import IsolationForest
+
 import os
 from sklearn.cluster import DBSCAN
 
@@ -302,6 +304,7 @@ def remove_outliers_iqr(df, columns):
 
     Parameters:
     df (pandas.DataFrame): The input DataFrame.
+    columns (list): The list of columns to check for outliers.
 
     Returns:
     pd.DataFrame: The DataFrame with outliers removed.
@@ -334,6 +337,42 @@ def remove_outliers_iqr(df, columns):
     print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
 
     return new_df, outliers
+
+def remove_outliers_percentile(df, columns, lower_percentile=0.01, upper_percentile=0.99):
+    """
+    Removes outliers from specified columns in a DataFrame using the percentile method.
+
+    Parameters:
+    df (pandas.DataFrame): The input DataFrame.
+    columns (list): List of column names to check for outliers.
+    lower_percentile (float): The lower percentile threshold. Default is 0.01 (1st percentile).
+    upper_percentile (float): The upper percentile threshold. Default is 0.99 (99th percentile).
+
+    Returns:
+    pd.DataFrame: The DataFrame with outliers removed.
+    pd.DataFrame: The DataFrame containing only outliers.
+    """
+    initial_row_count = df.shape[0]
+    outliers = pd.DataFrame()
+    
+    for column in columns:
+        lower_bound = df[column].quantile(lower_percentile)
+        upper_bound = df[column].quantile(upper_percentile)
+        
+        column_outliers = df[(df[column] < lower_bound) | (df[column] > upper_bound)]
+        outliers = pd.concat([outliers, column_outliers])
+        
+        df = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
+    
+    outliers = outliers.drop_duplicates()
+    final_row_count = df.shape[0]
+    num_rows_removed = initial_row_count - final_row_count
+    percentage_removed = (num_rows_removed / initial_row_count) * 100
+    
+    print(f"Number of rows removed: {num_rows_removed}")
+    print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
+    
+    return df, outliers
 
 def remove_outliers_percentile(df, columns, lower_percentile=0.01, upper_percentile=0.99):
     """
