@@ -236,7 +236,7 @@ def feat_engineering(df):
         proportion_col = f'{col}_proportion'
         new_df[proportion_col] = new_df[col] / new_df['monetary']
      
-    new_df.drop(columns=spend_cols, inplace=True)
+    #new_df.drop(columns=spend_cols, inplace=True)
     
     return new_df
 
@@ -266,123 +266,6 @@ def sqrt_transform(df):
             new_df[column] = np.sqrt(df[column])
     
     return new_df
-
-def remove_outliers_manual(df):
-    """
-    Removes outliers from specified columns in a DataFrame based on manual thresholds.
-
-    Parameters:
-    df (pandas.DataFrame): The input DataFrame.
-    thresholds (dict): Dictionary where keys are column names and values are tuples (lower_bound, upper_bound).
-
-    Returns:
-    pd.DataFrame: The DataFrame with outliers removed.
-    pd.DataFrame: The DataFrame containing only outliers.
-    """
-    new_df = df.copy()
-    
-    thresholds = {
-        'spend_videogames' : (1, 2200),
-        'spend_fish' : (1, 3000),
-        'spend_meat' : (3, 4000),
-        'spend_electronics' : (0, 8000),
-        'spend_petfood' : (0, 4200)
-    }
-    
-    initial_row_count = new_df.shape[0]
-    outliers = pd.DataFrame()
-
-    for column, (lower_bound, upper_bound) in thresholds.items():
-        column_outliers = new_df[(new_df[column] < lower_bound) | (new_df[column] > upper_bound)]
-        outliers = pd.concat([outliers, column_outliers])
-
-        new_df = new_df[(new_df[column] >= lower_bound) & (new_df[column] <= upper_bound)]
-
-    outliers = outliers.drop_duplicates()
-    final_row_count = new_df.shape[0]
-    num_rows_removed = initial_row_count - final_row_count
-    percentage_removed = (num_rows_removed / initial_row_count) * 100
-
-    print(f"Number of rows removed: {num_rows_removed}")
-    print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
-
-    return new_df, outliers
-
-def remove_outliers_iqr(df, columns):
-    """
-    Removes outliers from specified columns in a DataFrame using the IQR method.
-
-    Parameters:
-    df (pandas.DataFrame): The input DataFrame.
-    columns (list): The list of columns to check for outliers.
-
-    Returns:
-    pd.DataFrame: The DataFrame with outliers removed.
-    pd.DataFrame: The DataFrame containing only outliers.
-    """
-    new_df = df.copy()
-    
-    initial_row_count = new_df.shape[0]
-    outliers = pd.DataFrame()
-
-    for column in columns:
-        Q1 = new_df[column].quantile(0.25)
-        Q3 = new_df[column].quantile(0.75)
-        IQR = Q3 - Q1
-
-        lower_bound = Q1 - 1.5 * IQR
-        upper_bound = Q3 + 1.5 * IQR
-
-        column_outliers = new_df[(new_df[column] < lower_bound) | (new_df[column] > upper_bound)]
-        outliers = pd.concat([outliers, column_outliers])
-
-        new_df = new_df[(new_df[column] >= lower_bound) & (new_df[column] <= upper_bound)]
-
-    outliers = outliers.drop_duplicates()
-    final_row_count = new_df.shape[0]
-    num_rows_removed = initial_row_count - final_row_count
-    percentage_removed = (num_rows_removed / initial_row_count) * 100
-
-    print(f"Number of rows removed: {num_rows_removed}")
-    print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
-
-    return new_df, outliers
-
-def remove_outliers_percentile(df, columns, lower_percentile=0.01, upper_percentile=0.99):
-    """
-    Removes outliers from specified columns in a DataFrame using the percentile method.
-
-    Parameters:
-    df (pandas.DataFrame): The input DataFrame.
-    columns (list): List of column names to check for outliers.
-    lower_percentile (float): The lower percentile threshold. Default is 0.01 (1st percentile).
-    upper_percentile (float): The upper percentile threshold. Default is 0.99 (99th percentile).
-
-    Returns:
-    pd.DataFrame: The DataFrame with outliers removed.
-    pd.DataFrame: The DataFrame containing only outliers.
-    """
-    initial_row_count = df.shape[0]
-    outliers = pd.DataFrame()
-    
-    for column in columns:
-        lower_bound = df[column].quantile(lower_percentile)
-        upper_bound = df[column].quantile(upper_percentile)
-        
-        column_outliers = df[(df[column] < lower_bound) | (df[column] > upper_bound)]
-        outliers = pd.concat([outliers, column_outliers])
-        
-        df = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
-    
-    outliers = outliers.drop_duplicates()
-    final_row_count = df.shape[0]
-    num_rows_removed = initial_row_count - final_row_count
-    percentage_removed = (num_rows_removed / initial_row_count) * 100
-    
-    print(f"Number of rows removed: {num_rows_removed}")
-    print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
-    
-    return df, outliers
 
 def isolation_forest(df, columns, contamination=0.01, random_state=42):
     """

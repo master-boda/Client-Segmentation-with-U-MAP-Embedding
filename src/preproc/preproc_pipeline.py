@@ -30,11 +30,10 @@ product = pd.read_excel(product_path)
 def preproc_pipeline_customer_info(df, scaler=MinMaxScaler()):
     
     # column names for different types of variables (continuous, discrete, binary), important for different types of preprocessing in the pipeline
-    # note: some discrete variables are treated as continuous in the pipeline
-    cols_disc = ['kids_home', 'teens_home', 'number_complaints', 'distinct_stores_visited', 'educ_years', 'age']#, 'typical_hour']
+    # note: some discrete variables are treated as continuous in the pipeline (age, typical_hour)
+    cols_disc = ['kids_home', 'teens_home', 'number_complaints', 'distinct_stores_visited', 'educ_years']#, 'typical_hour','age']
     cols_binary = ['loyalty_member', 'gender_binary']
-    #cols_novariance = ['percentage_of_products_bought_promotion', 'spend_nonalcohol_drinks_proportion']
-    cols_cont = customer_info_clean.columns.difference(cols_disc + cols_binary)# + cols_novariance)
+    cols_cont = customer_info_clean.columns.difference(cols_disc + cols_binary)
     
     # filter for continuous variables
     df_filtered = df[cols_cont]
@@ -48,7 +47,7 @@ def preproc_pipeline_customer_info(df, scaler=MinMaxScaler()):
     df_imputed, iso_outliers = isolation_forest(df_imputed, df_imputed.columns, contamination=0.01)
 
     df_outliers = pd.concat([fishy_outliers, iso_outliers]).drop_duplicates()
-
+    
     df_imputed_original_scale = pd.DataFrame(scaler.inverse_transform(df_imputed), columns=df_imputed.columns, index=df_imputed.index)
     df_imputed_original_scale_outliers = pd.DataFrame(scaler.inverse_transform(df_outliers), columns=df_outliers.columns, index=df_outliers.index)
 
@@ -61,14 +60,17 @@ def preproc_pipeline_customer_info(df, scaler=MinMaxScaler()):
     df_scaled = pd.DataFrame(scaler.fit_transform(df_sqrt), columns=df_sqrt.columns, index=df_sqrt.index)
     df_scaled_outliers = pd.DataFrame(scaler.transform(df_sqrt_outliers), columns=df_sqrt_outliers.columns, index=df_sqrt_outliers.index)
     
-    latent_representation, encoder = run_autoencoder(df_scaled, epochs=30, batch_size=32, latent_dim=4)
-    latent_representation_outliers = run_autoencoder(df_scaled_outliers, encoder=encoder)
-        
-    latent_df = pd.DataFrame(latent_representation, index=df_scaled.index, columns=[f'latent_{i}' for i in range(latent_representation.shape[1])])
-    latent_df.to_csv('data/processed/latent_representation.csv')
+    df_scaled = pd.merge(df_scaled, df[cols_binary], how='left', on='customer_id')    
+    df_scaled_outliers = pd.merge(df_scaled_outliers, df_outliers[cols_binary], how='left', on='customer_id')
     
-    latent_df_outliers = pd.DataFrame(latent_representation_outliers, index=df_scaled_outliers.index, columns=[f'latent_{i}' for i in range(latent_representation_outliers.shape[1])])
-    latent_df_outliers.to_csv('data/processed/latent_representation_outliers.csv')
+    #latent_representation, encoder = run_autoencoder(df_scaled, epochs=30, batch_size=32, latent_dim=4)
+    #latent_representation_outliers = run_autoencoder(df_scaled_outliers, encoder=encoder)
+        
+    #latent_df = pd.DataFrame(latent_representation, index=df_scaled.index, columns=[f'latent_{i}' for i in range(latent_representation.shape[1])])
+    #latent_df.to_csv('data/processed/latent_representation.csv')
+    
+    #latent_df_outliers = pd.DataFrame(latent_representation_outliers, index=df_scaled_outliers.index, columns=[f'latent_{i}' for i in range(latent_representation_outliers.shape[1])])
+    #latent_df_outliers.to_csv('data/processed/latent_representation_outliers.csv')
     
     print('Preprocessing Pipeline Completed')
     
@@ -77,7 +79,7 @@ def preproc_pipeline_customer_info(df, scaler=MinMaxScaler()):
 # data cleaning before pipeline
 customer_info_clean = clean_customer_data(customer_info)
 
-customer_info_preproc, customer_info_preproc_outliers = preproc_pipeline_customer_info(customer_info_clean, scaler=MinMaxScaler())
+customer_info_preproc, customer_info_preproc_outliers = preproc_pipeline_customer_info(customer_info_clean, scaler=StandardScaler())
 
 base_dir = 'data/processed'
 customer_info_preproc.to_csv(os.path.join(base_dir, 'customer_info_preproc.csv'))
