@@ -236,7 +236,7 @@ def feat_engineering(df):
         proportion_col = f'{col}_proportion'
         new_df[proportion_col] = new_df[col] / new_df['monetary']
      
-    #new_df.drop(columns=spend_cols, inplace=True)
+    new_df.drop(columns=spend_cols, inplace=True)
     
     return new_df
 
