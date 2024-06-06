@@ -31,7 +31,7 @@ def preproc_pipeline_customer_info(df, scaler=MinMaxScaler()):
     
     # column names for different types of variables (continuous, discrete, binary), important for different types of preprocessing in the pipeline
     # note: some discrete variables are treated as continuous in the pipeline
-    cols_disc = ['kids_home', 'teens_home', 'number_complaints', 'distinct_stores_visited', 'educ_years', 'typical_hour', 'age']
+    cols_disc = ['kids_home', 'teens_home', 'number_complaints', 'distinct_stores_visited', 'educ_years', 'age']#, 'typical_hour']
     cols_binary = ['loyalty_member', 'gender_binary']
     cols_cont = customer_info_clean.columns.difference(cols_disc + cols_binary)
     
@@ -43,8 +43,8 @@ def preproc_pipeline_customer_info(df, scaler=MinMaxScaler()):
     imputer = KNNImputer(n_neighbors=5)
     df_imputed = pd.DataFrame(imputer.fit_transform(df_scaled), columns=df_scaled.columns, index=df_scaled.index)
     
-    df_imputed, fishy_outliers = remove_fishy_outliers(df_imputed)
-    df_imputed, iso_outliers = isolation_forest(df_imputed, df_imputed.columns)
+    df_imputed, fishy_outliers = remove_fishy_outliers(df_imputed, )
+    df_imputed, iso_outliers = isolation_forest(df_imputed, df_imputed.columns, contamination=0.01)
 
     df_outliers = pd.concat([fishy_outliers, iso_outliers]).drop_duplicates()
 
@@ -60,9 +60,15 @@ def preproc_pipeline_customer_info(df, scaler=MinMaxScaler()):
     df_scaled = pd.DataFrame(scaler.fit_transform(df_sqrt), columns=df_sqrt.columns, index=df_sqrt.index)
     df_scaled_outliers = pd.DataFrame(scaler.transform(df_sqrt_outliers), columns=df_sqrt_outliers.columns, index=df_sqrt_outliers.index)
     
-    run_autoencoder(df_scaled, 'data/processed/latent_representation.csv', epochs=50, batch_size=32, latent_dim=4)
-    run_autoencoder(df_scaled_outliers, 'data/processed/latent_representation_outliers.csv', epochs=50, batch_size=32, latent_dim=4)
+    latent_representation, encoder = run_autoencoder(df_scaled, epochs=50, batch_size=32, latent_dim=4)
+    latent_representation_outliers = run_autoencoder(df_scaled_outliers, encoder=encoder)
         
+    latent_df = pd.DataFrame(latent_representation, index=df_scaled.index, columns=[f'latent_{i}' for i in range(latent_representation.shape[1])])
+    latent_df.to_csv('data/processed/latent_representation.csv')
+    
+    latent_df_outliers = pd.DataFrame(latent_representation_outliers, index=df_scaled_outliers.index, columns=[f'latent_{i}' for i in range(latent_representation_outliers.shape[1])])
+    latent_df_outliers.to_csv('data/processed/latent_representation_outliers.csv')
+    
     print('Preprocessing Pipeline Completed')
     
     return df_scaled, df_scaled_outliers # return the preprocessed DataFrame without passing through autoencoder

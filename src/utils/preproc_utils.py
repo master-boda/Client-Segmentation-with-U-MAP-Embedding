@@ -215,9 +215,15 @@ def feat_engineering(df):
     """
     
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/raw'))
-    basket = pd.read_csv(os.path.join(base_dir, 'customer_basket.csv'), index_col='invoice_id')
+    basket = pd.read_csv(os.path.join(base_dir, 'customer_basket.csv'))
+
+    freq = basket.groupby('customer_id').size().reset_index(name='frequency')
+    freq.set_index('customer_id', inplace=True)
 
     new_df = df.copy()
+    
+    new_df = pd.merge(new_df, freq, how='left', on='customer_id')
+    new_df['frequency'].fillna(0, inplace=True)
     
     spend_cols = ['spend_groceries', 'spend_electronics', 'spend_vegetables', 
                   'spend_nonalcohol_drinks', 'spend_alcohol_drinks', 'spend_meat', 
@@ -230,7 +236,7 @@ def feat_engineering(df):
         proportion_col = f'{col}_proportion'
         new_df[proportion_col] = new_df[col] / new_df['monetary']
      
-    new_df.drop(columns=spend_cols, inplace=True)
+    #new_df.drop(columns=spend_cols, inplace=True)
     
     return new_df
 

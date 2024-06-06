@@ -12,11 +12,3 @@
 6. usar o geopandas para ver a locations
 
 as karens da populacao são pessoas que fazem reclamações (cascais é um caso)
-
-thresholds de outliers:     thresholds = {
-        'spend_videogames' : (1, 2200),
-        'spend_fish' : (1, 3000),
-        'spend_meat' : (3, 4000),
-        'spend_electronics' : (0, 8000),
-        'spend_petfood' : (0, 4200)
-    }

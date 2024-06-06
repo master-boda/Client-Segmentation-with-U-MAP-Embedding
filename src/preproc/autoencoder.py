@@ -9,13 +9,17 @@ from tensorflow.keras.callbacks import EarlyStopping # type: ignore
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
-def run_autoencoder(df, output_path, epochs=50, batch_size=32, latent_dim=6, random_state=42):
+def run_autoencoder(df, epochs=50, batch_size=32, latent_dim=6, random_state=42, encoder=None):
     if df.isnull().values.any():
         raise ValueError('Input DataFrame contains NaN values.')
     
     #define the random seed for reproducibility
     np.random.seed(random_state)
     tf.random.set_seed(random_state)
+    
+    if encoder:
+        latent_representation = encoder.predict(df)
+        return latent_representation
     
     # define autoencoder architecture
     input_dim = df.shape[1]
@@ -48,12 +52,7 @@ def run_autoencoder(df, output_path, epochs=50, batch_size=32, latent_dim=6, ran
     # extract the latent representations
     latent_representation = encoder.predict(df)
 
-    # convert latent representations to DataFrame
-    latent_df = pd.DataFrame(latent_representation, index=df.index, columns=[f'latent_{i}' for i in range(latent_representation.shape[1])])
-
-    latent_df.to_csv(output_path)
-
-    return latent_df
+    return latent_representation, encoder
 
 #base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/processed'))
 #output_path = os.path.join(base_dir, 'latent_representation.csv')
