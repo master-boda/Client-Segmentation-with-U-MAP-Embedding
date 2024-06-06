@@ -123,7 +123,7 @@ def clean_customer_data(df):
     - Calculating age from the birthdate column and dropping the birthdate column
     - Creating a binary column for loyalty membership and dropping the original column
     - Calculating years as a customer from the year_first_transaction column and dropping the original column
-    - Extracting education years from the name column and dropping the name column
+    - Extracting education years from the name column and dropping the original column
     - Converting gender to a binary column and dropping the original column
     - Dropping coordinates columns
 
@@ -157,7 +157,7 @@ def clean_customer_data(df):
     # extract the education years from the "name" column
     new_df = add_education_years(new_df, 'name')
     new_df.drop('name', axis=1, inplace=True)
-
+    
     # change gender from string to binary
     new_df['gender_binary'] = np.where(new_df['gender'] == 'male', 1, 0)
     new_df.drop('gender', axis=1, inplace=True)
@@ -213,6 +213,10 @@ def feat_engineering(df):
     Returns:
     pd.DataFrame: The DataFrame with new proportion columns, monetary column, and binary dummy variables added.
     """
+    
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/raw'))
+    basket = pd.read_csv(os.path.join(base_dir, 'customer_basket.csv'), index_col='invoice_id')
+
     new_df = df.copy()
     
     spend_cols = ['spend_groceries', 'spend_electronics', 'spend_vegetables', 
@@ -374,38 +378,75 @@ def remove_outliers_percentile(df, columns, lower_percentile=0.01, upper_percent
     
     return df, outliers
 
-def remove_outliers_percentile(df, columns, lower_percentile=0.01, upper_percentile=0.99):
+def isolation_forest(df, columns, contamination=0.01, random_state=42):
     """
-    Removes outliers from specified columns in a DataFrame using the percentile method.
+    Removes outliers from specified columns in a DataFrame using the Isolation Forest method.
 
     Parameters:
     df (pandas.DataFrame): The input DataFrame.
-    columns (list): List of column names to check for outliers.
-    lower_percentile (float): The lower percentile threshold. Default is 0.01 (1st percentile).
-    upper_percentile (float): The upper percentile threshold. Default is 0.99 (99th percentile).
+    columns (list): The list of columns to check for outliers.
+    contamination (float): The proportion of outliers in the data set, should be between 0 and 0.5.
+    random_state (int): The random seed for reproducibility.
 
     Returns:
     pd.DataFrame: The DataFrame with outliers removed.
     pd.DataFrame: The DataFrame containing only outliers.
     """
-    initial_row_count = df.shape[0]
-    outliers = pd.DataFrame()
-    
-    for column in columns:
-        lower_bound = df[column].quantile(lower_percentile)
-        upper_bound = df[column].quantile(upper_percentile)
-        
-        column_outliers = df[(df[column] < lower_bound) | (df[column] > upper_bound)]
-        outliers = pd.concat([outliers, column_outliers])
-        
-        df = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
-    
-    outliers = outliers.drop_duplicates()
-    final_row_count = df.shape[0]
+    new_df = df.copy()
+    initial_row_count = new_df.shape[0]
+
+    clf = IsolationForest(contamination=contamination, random_state=random_state)
+    clf.fit(new_df[columns])
+
+    outliers = clf.predict(new_df[columns])
+    outliers = pd.DataFrame(outliers, columns=['outlier'], index=new_df.index)
+
+    new_df = new_df[outliers['outlier'] == 1].copy()
+    iso_outliers = new_df[outliers['outlier'] == -1].copy()
+
+    final_row_count = new_df.shape[0]
     num_rows_removed = initial_row_count - final_row_count
     percentage_removed = (num_rows_removed / initial_row_count) * 100
-    
+
     print(f"Number of rows removed: {num_rows_removed}")
     print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
+
+    return new_df, iso_outliers
+
+def remove_fishy_outliers(df):
+    """
+    Removes outliers from the DataFrame based on the existence of "Fishy" in their name.
+
+    Parameters:
+    df (pd.DataFrame): The input DataFrame.
+
+    Returns:
+    pd.DataFrame: The DataFrame with outliers removed.
+    pd.DataFrame: The DataFrame containing only outliers.
+    """
+    new_df = df.copy()
     
-    return df, outliers
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/raw'))
+
+    path = os.path.join(base_dir, 'customer_info.csv')
+    customer_info = pd.read_csv(path, index_col='customer_id')
+    
+    fishy_indexes = customer_info[customer_info['customer_name'].str.contains('Fishy')].index
+    
+    initial_row_count = new_df.shape[0]
+    outliers = pd.DataFrame()
+
+    fishy_outliers = new_df.loc[fishy_indexes]
+    outliers = pd.concat([outliers, fishy_outliers])
+
+    new_df = new_df.drop(fishy_indexes)
+    
+    outliers = outliers.drop_duplicates()
+    final_row_count = new_df.shape[0]
+    num_rows_removed = initial_row_count - final_row_count
+    percentage_removed = (num_rows_removed / initial_row_count) * 100
+
+    print(f"Number of rows removed: {num_rows_removed}")
+    print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
+
+    return new_df, outliers

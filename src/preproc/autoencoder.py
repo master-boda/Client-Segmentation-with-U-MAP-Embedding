@@ -40,7 +40,7 @@ def run_autoencoder(df, output_path, epochs=50, batch_size=32, latent_dim=6, ran
     # compile the autoencoder with Mean Squared Error loss function
     autoencoder.compile(optimizer=Adam(learning_rate=0.001, clipnorm=1.0), loss='mean_squared_error')
 
-    early_stopping = EarlyStopping(monitor='loss', patience=7, restore_best_weights=True)
+    early_stopping = EarlyStopping(monitor='loss', patience=6, restore_best_weights=True)
 
     # train the autoencoder
     autoencoder.fit(df, df, epochs=epochs, batch_size=batch_size, callbacks=[early_stopping])

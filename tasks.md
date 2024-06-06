@@ -10,3 +10,6 @@ CUSTOMER / CLUSTER ANALYSIS
 - fazer promoções segmentadas
 
 -melhorar notebook EDA
+fazer frequency variable
+utilizar o autoencoder so 1x (para non-outliers)
+-comentar o código
