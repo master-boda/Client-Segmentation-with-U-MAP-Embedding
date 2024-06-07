@@ -1,14 +1,9 @@
 import pandas as pd
 from datetime import datetime
 import numpy as np
-from sklearn.pipeline import Pipeline
-from sklearn.compose import ColumnTransformer
-from sklearn.impute import KNNImputer, SimpleImputer
-from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.ensemble import IsolationForest
-
 import os
-from sklearn.cluster import DBSCAN
+
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
@@ -254,17 +249,17 @@ def isolation_forest(df, columns, contamination=0.01, random_state=42):
     outliers = clf.predict(new_df[columns])
     outliers = pd.DataFrame(outliers, columns=['outlier'], index=new_df.index)
 
-    new_df = new_df[outliers['outlier'] == 1].copy()
+    inliers = new_df[outliers['outlier'] == 1].copy()
     iso_outliers = new_df[outliers['outlier'] == -1].copy()
 
-    final_row_count = new_df.shape[0]
+    final_row_count = inliers.shape[0]
     num_rows_removed = initial_row_count - final_row_count
     percentage_removed = (num_rows_removed / initial_row_count) * 100
 
     print(f"Number of rows removed: {num_rows_removed}")
     print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
 
-    return new_df, iso_outliers
+    return inliers, iso_outliers
 
 def remove_fishy_outliers(df):
     """
