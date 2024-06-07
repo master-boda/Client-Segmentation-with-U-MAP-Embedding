@@ -165,42 +165,6 @@ def clean_customer_data(df):
     new_df.drop(columns=['latitude', 'longitude'], inplace=True)
 
     return new_df
-
-def binning(df):
-    """
-    Swaps specified variables for new binary dummy variables using binning.
-
-    Parameters:
-    df (pandas.DataFrame): The input DataFrame.
-    binning_dict (dict): A dictionary where keys are column names and values are tuples defining the bins.
-
-    Returns:
-    pd.DataFrame: The DataFrame with new binary dummy variables added.
-    """
-    new_df = df.copy()
-    
-    binning_dict = {
-        'kids_home': [0, 2, float('inf')],
-        'teens_home': [0, 2, float('inf')],
-        'number_complaints': [0, 1, float('inf')],
-        'distinct_stores_visited': [0, 3, float('inf')],
-        'educ_years': [12, 15, float('inf')]
-    }
-
-    for col, bins in binning_dict.items():
-        bin_labels = [f"{col}_under_{bins[1]}", f"{col}_over_{bins[1]}"]
-        new_df[f'{col}_binned'] = pd.cut(new_df[col], bins=bins, include_lowest=True, labels=bin_labels)
-
-        # create binary dummy variables for each bin
-        for bin_label in bin_labels:
-            new_df[bin_label] = (new_df[f'{col}_binned'] == bin_label).astype(int)
-
-        # drop the temporary binned column
-        new_df.drop(columns=[f'{col}_binned'], inplace=True)
-        
-    new_df.drop(columns=list(binning_dict.keys()), inplace=True)
-        
-    return new_df
     
 def feat_engineering(df):
     """
@@ -235,7 +199,7 @@ def feat_engineering(df):
     for col in spend_cols:
         proportion_col = f'{col}_proportion'
         new_df[proportion_col] = new_df[col] / new_df['monetary']
-     
+    
     #new_df.drop(columns=spend_cols, inplace=True)
     
     return new_df

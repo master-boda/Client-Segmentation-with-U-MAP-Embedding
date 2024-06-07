@@ -8,7 +8,7 @@ import numpy as np
 import umap
 import seaborn as sns
 
-sys.path.append(os.path.abspath('..')) 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from utils.preproc_utils import *
 from utils.plot_utils import *
@@ -44,4 +44,12 @@ def run_clustering(df, n_clusters=7, random_state=42, visualize=True):
 
 umap_df = run_clustering(customer_info_preproc, n_clusters=7, random_state=42, visualize=True)
 
-customer_info_preproc_labeled = pd.merge(customer_info_preproc, umap_df['cluster'], how='left', on='customer_id')
+base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/raw'))
+customer_info_path = os.path.join(base_dir, 'customer_info.csv')
+customer_info = pd.read_csv(customer_info_path, index_col='customer_id')
+customer_info_clean = clean_customer_data(customer_info)
+
+customer_info_preproc_labeled = pd.merge(customer_info_clean, umap_df['cluster'], how='left', on='customer_id')
+
+base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/processed'))
+customer_info_preproc_labeled.to_csv(os.path.join(base_dir, 'customer_info_clusters.csv'))

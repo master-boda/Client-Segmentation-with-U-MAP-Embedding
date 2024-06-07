@@ -31,13 +31,18 @@ def preproc_pipeline_customer_info(df, scaler=MinMaxScaler()):
     
     # column names for different types of variables (continuous, discrete, binary), important for different types of preprocessing in the pipeline
     # note: some discrete variables are treated as continuous in the pipeline (age, typical_hour)
-    cols_disc = ['kids_home', 'teens_home', 'number_complaints', 'distinct_stores_visited', 'educ_years']#, 'typical_hour','age']
-    cols_binary = ['loyalty_member', 'gender_binary']
+        
+    df['has_offspring'] = 1*(df['kids_home'] + df['teens_home'] > 0)
+    df['has_complaints'] = 1*(df['number_complaints'] > 2)
+    df['has_educ'] = 1*(df['educ_years'] > 12)
+    
+    cols_disc = ['kids_home', 'teens_home', 'distinct_stores_visited', 'educ_years', 'number_complaints']#, 'typical_hour', 'age']
+    cols_binary = ['loyalty_member', 'gender_binary', 'has_offspring', 'has_complaints', 'has_educ']
     cols_cont = customer_info_clean.columns.difference(cols_disc + cols_binary)
     
     # filter for continuous variables
     df_filtered = df[cols_cont]
-    
+        
     df_scaled = pd.DataFrame(scaler.fit_transform(df_filtered), columns=df_filtered.columns, index=df_filtered.index)
     
     imputer = KNNImputer(n_neighbors=5)
@@ -59,9 +64,9 @@ def preproc_pipeline_customer_info(df, scaler=MinMaxScaler()):
 
     df_scaled = pd.DataFrame(scaler.fit_transform(df_sqrt), columns=df_sqrt.columns, index=df_sqrt.index)
     df_scaled_outliers = pd.DataFrame(scaler.transform(df_sqrt_outliers), columns=df_sqrt_outliers.columns, index=df_sqrt_outliers.index)
-    
+
     df_scaled = pd.merge(df_scaled, df[cols_binary], how='left', on='customer_id')    
-    df_scaled_outliers = pd.merge(df_scaled_outliers, df_outliers[cols_binary], how='left', on='customer_id')
+    df_scaled_outliers = pd.merge(df_scaled_outliers, df[cols_binary], how='left', on='customer_id')
     
     #latent_representation, encoder = run_autoencoder(df_scaled, epochs=30, batch_size=32, latent_dim=4)
     #latent_representation_outliers = run_autoencoder(df_scaled_outliers, encoder=encoder)
