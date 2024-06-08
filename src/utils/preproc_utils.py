@@ -332,3 +332,37 @@ def remove_fishy_outliers(df):
     print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
 
     return new_df, outliers
+
+def add_cluster(df1, df2):
+    # Create a copy of the first dataframe to avoid modifying the original
+    df1_copy = df1.copy()
+
+    # Reset the index of df2 and rename the index column to 'customer_index'
+    df2_reset = df2.reset_index().rename(columns={'index': 'customer_id'})
+
+    # Merge df1_copy and df2_reset on 'customer_index', keeping all rows from df1_copy
+    merged = pd.merge(df1_copy, df2_reset, on='customer_id', how='left')
+
+    return merged
+
+def create_cluster_summary(df):
+    # Drop 'customer_name' column
+    df = df.drop(columns=['customer_name'])
+    
+    # Define the aggregation function for each column
+    agg_funcs = {col: 'mean' for col in df.columns}
+    agg_funcs.update({col: lambda x: x.mode()[0] for col in ['customer_gender', 'has_loyalty_card']})
+    
+    # Group by 'cluster' and apply the aggregation functions
+    summary = df.groupby('cluster').agg(agg_funcs)
+    
+    return summary
+
+def add_fishy(df1, df2):
+    # Add a 'cluster' column to df2 with all values set to 8
+    df2['cluster'] = 8
+
+    # Concatenate df1 and df2
+    result = pd.concat([df1, df2])
+
+    return result

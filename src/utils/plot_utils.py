@@ -7,6 +7,7 @@ from sklearn.ensemble import RandomForestClassifier
 import umap
 from sklearn.metrics import silhouette_score
 import os
+import folium
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
@@ -269,3 +270,27 @@ def plot_feature_importance(df, n_clusters=7, random_state=42):
     plt.ylabel('Feature')
     plt.title('Feature Importance based on Random Forest')
     plt.show()
+    
+def plot_cluster(df, cluster_number):
+    # Create a map centered around Portugal
+    m = folium.Map(location=[39.3999, -8.2245], zoom_start=6)
+
+    # Define a color map for clusters
+    colors = ['red', 'blue', 'green', 'purple', 'orange', 'darkred']
+
+    # Filter the DataFrame for the specified cluster
+    df_cluster = df[df['cluster'] == cluster_number]
+
+    # Add a point for each row in the df_cluster DataFrame
+    for index, row in df_cluster.iterrows():
+        folium.CircleMarker(
+            location=[row['latitude'], row['longitude']],
+            radius=0.1, # This controls the size of the points (1 = smallest)
+            color=colors[cluster_number % len(colors)],
+            fill=True,
+            fill_color=colors[cluster_number % len(colors)]
+        ).add_to(m)
+
+    # Display the map
+    return m
+
