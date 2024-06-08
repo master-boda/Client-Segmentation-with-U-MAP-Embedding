@@ -160,6 +160,40 @@ def clean_customer_data(df):
     new_df.drop(columns=['latitude', 'longitude'], inplace=True)
 
     return new_df
+
+def clean_customer_to_cluster(df):
+    # Create a copy of the dataframe to avoid modifying the original
+    df_copy = df.copy()
+    
+    # Convert 'customer_birthdate' to age
+    df_copy['customer_birthdate'] = pd.to_datetime(df_copy['customer_birthdate'])
+    df_copy['age'] = (pd.Timestamp('2024-06-01') - df_copy['customer_birthdate']).dt.days // 365
+    
+    # Convert 'year_first_transaction' to years as customers
+    df_copy['year_first_transaction'] = pd.to_datetime(df_copy['year_first_transaction'], format='%Y')
+    df_copy['years_as_customer'] = (pd.Timestamp('2024-06-01') - df_copy['year_first_transaction']).dt.days // 365
+    
+    # Create 'monetary' column
+    spend_columns = ['lifetime_spend_electronics', 'lifetime_spend_vegetables', 'lifetime_spend_nonalcohol_drinks', 
+                     'lifetime_spend_alcohol_drinks', 'lifetime_spend_meat', 'lifetime_spend_fish', 
+                     'lifetime_spend_hygiene', 'lifetime_spend_videogames', 'lifetime_spend_petfood', 
+                     'lifetime_spend_groceries']
+    df_copy['monetary'] = df_copy[spend_columns].sum(axis=1)
+    
+    # Convert spend columns to percentage of 'monetary'
+    for column in spend_columns:
+        if column in ['lifetime_spend_nonalcohol_drinks', 'lifetime_spend_alcohol_drinks']:
+            df_copy['percentage_' + '_'.join(column.split('_')[2:])] = df_copy[column] / df_copy['monetary'] * 100
+        else:
+            df_copy['percentage_' + column.split('_')[-1]] = df_copy[column] / df_copy['monetary'] * 100
+    
+    # Convert 'loyalty_card_number' to binary
+    df_copy['has_loyalty_card'] = df_copy['loyalty_card_number'].notna().astype(int)
+    
+    # Drop original spend columns and 'customer_birthdate', 'year_first_transaction', 'loyalty_card_number'
+    df_copy.drop(spend_columns + ['customer_birthdate', 'year_first_transaction', 'loyalty_card_number'], axis=1, inplace=True)
+    
+    return df_copy
     
 def feat_engineering(df):
     """
