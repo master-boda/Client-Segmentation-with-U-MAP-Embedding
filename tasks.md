@@ -1,15 +1,12 @@
 OPTIMIZAR CLUSTERS
-- testar algoritmos diferentes de clustering - batista 
-- testar combinações diferentes de features (preproc pipeline)
-- usar DBSCAN para remover outliers mulidimensionais (incorporar na pipeline) - batista
+- podemos tentar separar as karens, mas neste momento não é o mais importante
 
 CUSTOMER / CLUSTER ANALYSIS
 - caracterizar os clusters (customer segmentation)
 - fazer basket analysis e association rules
 - fazer análise de localização dos clientes
 - fazer promoções segmentadas
+- qnd acabarem isto metam isso no report
 
 -melhorar notebook EDA
-fazer frequency variable
-utilizar o autoencoder so 1x (para non-outliers)
--comentar o código
+-comentar o código e docstrings
