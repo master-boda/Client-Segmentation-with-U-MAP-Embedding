@@ -160,40 +160,6 @@ def clean_customer_data(df):
     new_df.drop(columns=['latitude', 'longitude'], inplace=True)
 
     return new_df
-
-def clean_customer_to_cluster(df):
-    # Create a copy of the dataframe to avoid modifying the original
-    df_copy = df.copy()
-    
-    # Convert 'customer_birthdate' to age
-    df_copy['customer_birthdate'] = pd.to_datetime(df_copy['customer_birthdate'])
-    df_copy['age'] = (pd.Timestamp('2024-06-01') - df_copy['customer_birthdate']).dt.days // 365
-    
-    # Convert 'year_first_transaction' to years as customers
-    df_copy['year_first_transaction'] = pd.to_datetime(df_copy['year_first_transaction'], format='%Y')
-    df_copy['years_as_customer'] = (pd.Timestamp('2024-06-01') - df_copy['year_first_transaction']).dt.days // 365
-    
-    # Create 'monetary' column
-    spend_columns = ['lifetime_spend_electronics', 'lifetime_spend_vegetables', 'lifetime_spend_nonalcohol_drinks', 
-                     'lifetime_spend_alcohol_drinks', 'lifetime_spend_meat', 'lifetime_spend_fish', 
-                     'lifetime_spend_hygiene', 'lifetime_spend_videogames', 'lifetime_spend_petfood', 
-                     'lifetime_spend_groceries']
-    df_copy['monetary'] = df_copy[spend_columns].sum(axis=1)
-    
-    # Convert spend columns to percentage of 'monetary'
-    for column in spend_columns:
-        if column in ['lifetime_spend_nonalcohol_drinks', 'lifetime_spend_alcohol_drinks']:
-            df_copy['percentage_' + '_'.join(column.split('_')[2:])] = df_copy[column] / df_copy['monetary'] * 100
-        else:
-            df_copy['percentage_' + column.split('_')[-1]] = df_copy[column] / df_copy['monetary'] * 100
-    
-    # Convert 'loyalty_card_number' to binary
-    df_copy['has_loyalty_card'] = df_copy['loyalty_card_number'].notna().astype(int)
-    
-    # Drop original spend columns and 'customer_birthdate', 'year_first_transaction', 'loyalty_card_number'
-    df_copy.drop(spend_columns + ['customer_birthdate', 'year_first_transaction', 'loyalty_card_number'], axis=1, inplace=True)
-    
-    return df_copy
     
 def feat_engineering(df):
     """
@@ -228,9 +194,7 @@ def feat_engineering(df):
     for col in spend_cols:
         proportion_col = f'{col}_proportion'
         new_df[proportion_col] = new_df[col] / new_df['monetary']
-    
-    #new_df.drop(columns=spend_cols, inplace=True)
-    
+        
     return new_df
 
 def sqrt_transform(df):
@@ -259,41 +223,6 @@ def sqrt_transform(df):
             new_df[column] = np.sqrt(df[column])
     
     return new_df
-
-def isolation_forest(df, columns, contamination=0.01, random_state=42):
-    """
-    Removes outliers from specified columns in a DataFrame using the Isolation Forest method.
-
-    Parameters:
-    df (pandas.DataFrame): The input DataFrame.
-    columns (list): The list of columns to check for outliers.
-    contamination (float): The proportion of outliers in the data set, should be between 0 and 0.5.
-    random_state (int): The random seed for reproducibility.
-
-    Returns:
-    pd.DataFrame: The DataFrame with outliers removed.
-    pd.DataFrame: The DataFrame containing only outliers.
-    """
-    new_df = df.copy()
-    initial_row_count = new_df.shape[0]
-
-    clf = IsolationForest(contamination=contamination, random_state=random_state)
-    clf.fit(new_df[columns])
-
-    outliers = clf.predict(new_df[columns])
-    outliers = pd.DataFrame(outliers, columns=['outlier'], index=new_df.index)
-
-    inliers = new_df[outliers['outlier'] == 1].copy()
-    iso_outliers = new_df[outliers['outlier'] == -1].copy()
-
-    final_row_count = inliers.shape[0]
-    num_rows_removed = initial_row_count - final_row_count
-    percentage_removed = (num_rows_removed / initial_row_count) * 100
-
-    print(f"Number of rows removed: {num_rows_removed}")
-    print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
-
-    return inliers, iso_outliers
 
 def remove_fishy_outliers(df):
     """
@@ -332,37 +261,3 @@ def remove_fishy_outliers(df):
     print(f"Percentage of dataset removed: {percentage_removed:.2f}%")
 
     return new_df, outliers
-
-def add_cluster(df1, df2):
-    # Create a copy of the first dataframe to avoid modifying the original
-    df1_copy = df1.copy()
-
-    # Reset the index of df2 and rename the index column to 'customer_index'
-    df2_reset = df2.reset_index().rename(columns={'index': 'customer_id'})
-
-    # Merge df1_copy and df2_reset on 'customer_index', keeping all rows from df1_copy
-    merged = pd.merge(df1_copy, df2_reset, on='customer_id', how='left')
-
-    return merged
-
-def create_cluster_summary(df):
-    # Drop 'customer_name' column
-    df = df.drop(columns=['customer_name'])
-    
-    # Define the aggregation function for each column
-    agg_funcs = {col: 'mean' for col in df.columns}
-    agg_funcs.update({col: lambda x: x.mode()[0] for col in ['customer_gender', 'has_loyalty_card']})
-    
-    # Group by 'cluster' and apply the aggregation functions
-    summary = df.groupby('cluster').agg(agg_funcs)
-    
-    return summary
-
-def add_fishy(df1, df2):
-    # Add a 'cluster' column to df2 with all values set to 8
-    df2['cluster'] = 8
-
-    # Concatenate df1 and df2
-    result = pd.concat([df1, df2])
-
-    return result

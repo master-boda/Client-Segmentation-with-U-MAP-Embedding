@@ -37,7 +37,7 @@ def train_and_plot_som_per_variable(df, som_shape=(10, 10), sigma=1.0, learning_
         som.random_weights_init(data)
         som.train_random(data, iterations)
         
-        # Plot the distance map
+        # plot the distance map
         ax = axes[idx]
         ax.set_title(f'SOM - {column}')
         distance_map = som.distance_map().T
