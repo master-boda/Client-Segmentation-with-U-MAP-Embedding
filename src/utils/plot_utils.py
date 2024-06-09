@@ -294,3 +294,28 @@ def plot_cluster(df, cluster_number):
     # Display the map
     return m
 
+def plot_pie_chart(data, variable, colors, labels=None, legend=[], autopct='%1.1f%%'):
+    """
+    Plot a pie chart based on the values of a variable in the given data.
+
+    Args:
+        data (pandas.DataFrame): The input data containing the variable.
+        variable (str): The name of the variable to plot.
+        colors (list): The colors for each pie slice.
+        labels (list, optional): The labels for each pie slice. Defaults to None.
+        legend (list, optional): The legend labels. Defaults to [].
+        autopct (str, optional): The format for autopct labels. Defaults to '%1.1f%%'.
+
+    Returns:
+        None
+    """
+    counts = data[variable].value_counts()  # Count the occurrences of each value in the variable
+
+    # Plot the pie chart with specified parameters
+    plt.pie(counts, colors=colors, labels=labels, startangle=90, autopct=autopct, textprops={'fontsize': 25})
+    
+    if len(legend) != 0:
+        plt.legend(legend, fontsize=16, bbox_to_anchor=(0.7, 0.9))  # Add a legend if provided
+    
+    plt.show()  # Display the pie chart
+
