@@ -25,17 +25,12 @@ def preproc_pipeline_customer_info(df, scaler=MinMaxScaler()):
     
     # column names for different types of variables (continuous, discrete, binary), important for different types of preprocessing in the pipeline
     # note: some discrete variables are treated as continuous in the pipeline (age, typical_hour)
-
-    # create new binary feature based on the years of education discrete one
-    # (educ_years > 12) is considered as having education and there are no missing values in the educ_years column
-    df['has_educ'] = 1*(df['educ_years'] > 12)
-    
     cols_disc = ['kids_home', 'teens_home', 'distinct_stores_visited', 'educ_years', 'number_complaints']
-    cols_binary = ['loyalty_member', 'gender_binary', 'has_educ']
-    cols_cont = customer_info_clean.columns.difference(cols_disc + cols_binary)
+    cols_binary = ['loyalty_member', 'gender_binary']
+    cols_cont_and_disc = customer_info_clean.columns.difference(cols_binary)
     
-    # filter for continuous variables
-    df_filtered = df[cols_cont]
+    # filter for continuous and numerical discrete variables
+    df_filtered = df[cols_cont_and_disc]
     
     # scale the data for KNN imputer
     df_scaled = pd.DataFrame(scaler.fit_transform(df_filtered), columns=df_filtered.columns, index=df_filtered.index)
@@ -53,17 +48,24 @@ def preproc_pipeline_customer_info(df, scaler=MinMaxScaler()):
     # create new features
     df_new_features = feat_engineering(df_imputed_original_scale)
     
+    # assure that only continuous variables are included in the dataframe before applying transformations
+    new_binary_cols = ['has_complaints', 'has_offspring', 'has_educ']
+    df_new_features_cont = df_new_features[df_new_features.columns.difference(cols_disc + new_binary_cols)]
+    
     # apply sqrt transformation to the dataframe to reduce skewness and outlier impact
-    df_sqrt = sqrt_transform(df_new_features)
+    df_sqrt = sqrt_transform(df_new_features_cont)
 
     # scale the data again after the transformations
     df_scaled = pd.DataFrame(scaler.fit_transform(df_sqrt), columns=df_sqrt.columns, index=df_sqrt.index)
 
     # there are no missing values in the binary columns, we can safely merge them with the rest of the data
+    # note: feature engeneering created 3 additional binary columns
+    # final dataframe has a mix of continuous, and binary variables
+    df_scaled = pd.merge(df_scaled, df_new_features[new_binary_cols], how='left', on='customer_id')
     df_scaled = pd.merge(df_scaled, df[cols_binary], how='left', on='customer_id')    
 
     print('Preprocessing Pipeline Completed')
-    
+    print(df_scaled.info())
     return df_scaled, fishy_outliers
 
 # data cleaning before pipeline

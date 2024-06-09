@@ -195,6 +195,12 @@ def feat_engineering(df):
         proportion_col = f'{col}_proportion'
         new_df[proportion_col] = new_df[col] / new_df['monetary']
         
+    # create new binary feature based on the years of education discrete one
+    # (educ_years > 12) is considered as having education and there are no missing values in the educ_years column
+    new_df['has_offspring'] = 1*(new_df['kids_home'] + new_df['teens_home'] > 0)
+    new_df['has_complaints'] = 1*(new_df['number_complaints'] > 2)
+    new_df['has_educ'] = 1*(new_df['educ_years'] > 12)
+    
     return new_df
 
 def sqrt_transform(df):
