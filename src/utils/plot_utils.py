@@ -1,11 +1,6 @@
-import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-from sklearn.cluster import KMeans
-from sklearn.ensemble import RandomForestClassifier
-import umap
-from sklearn.metrics import silhouette_score
 import os
 import folium
 
@@ -111,33 +106,44 @@ def plot_variance(df):
     plt.tight_layout()
     plt.show()
     
-def plot_cluster(df, cluster_number):
+def plot_cluster(df, cluster_name):
     """
     Plots the data points of a specific cluster on a folium map.
 
     Args:
         df (pandas.DataFrame): The dataframe containing the data points.
-        cluster_number (int): The cluster number to plot.
+        cluster_name (str): The cluster name to plot.
 
     Returns:
         folium.Map: The folium map object with the data points of the specified cluster plotted.
     """
     m = folium.Map(location=[39.3999, -8.2245], zoom_start=6)
 
-    colors = ['red', 'blue', 'green', 'purple', 'orange', 'darkred']
+    color_mapping = {
+        'Pet Owners': 'red',
+        'Student Alcoholics': 'blue',
+        'Veggies': 'green',
+        'Tech Enthusiasts': 'purple',
+        'Loyal Customers': 'orange',
+        'Parents': 'darkred',
+        'Young Adults': 'pink',
+        'Promo Hunters': 'lightblue',
+        'Fishies': 'yellow'
+    }
 
-    df_cluster = df[df['cluster'] == cluster_number]
+    df_cluster = df[df['cluster'] == cluster_name]
 
     for index, row in df_cluster.iterrows():
         folium.CircleMarker(
             location=[row['latitude'], row['longitude']],
-            radius=0.1,
-            color=colors[cluster_number % len(colors)],
+            radius=5,
+            color=color_mapping.get(cluster_name, 'black'),
             fill=True,
-            fill_color=colors[cluster_number % len(colors)]
+            fill_color=color_mapping.get(cluster_name, 'black')
         ).add_to(m)
 
     return m
+
 
 def plot_pie_chart(data, variable, colors, labels=None, legend=[], autopct='%1.1f%%'):
     """
