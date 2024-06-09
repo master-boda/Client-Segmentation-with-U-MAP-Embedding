@@ -1,8 +1,4 @@
 import matplotlib.pyplot as plt
-from minisom import MiniSom 
-from minisom import MiniSom
-import math
-
 import os
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
